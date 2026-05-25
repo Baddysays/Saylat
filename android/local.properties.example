@@ -2,3 +2,4 @@ sdk.dir=C:/path/to/Android/Sdk
 
 # Только для вашей сборки APK (файл в .gitignore, в git не попадает):
 # saylat.server.url=http://ВАШ_IP_ИЛИ_ДОМЕН:8787
+# saylat.api.key=если на VPS задан SAYLAT_API_KEY

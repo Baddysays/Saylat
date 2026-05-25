@@ -35,6 +35,11 @@ class Settings(BaseSettings):
     allowed_schemes: tuple[str, ...] = ("http", "https")
     cache_ttl_sec: int = 900
     cache_max_entries: int = 400
+    redis_url: str = ""
+
+    # Защита личного VPS (пусто = без ключа)
+    api_key: str = ""
+    rate_limit_per_minute: int = 120
 
     # Playwright — скриншот-полосы (Opera Mini)
     playwright_enabled: bool = True

@@ -501,11 +501,37 @@ class BrowserViewModel(
 
     fun openService(serviceId: String) {
         when (serviceId) {
+            "inbox" -> openUnifiedInbox()
             "pikabu" -> loadUrl("https://pikabu.ru/")
             "vk" -> openTarget("vk")
             "dzen" -> openTarget("dzen", url = "https://dzen.ru/news")
             "telegram" -> openTarget("telegram")
             "mail" -> openTarget("mail")
+        }
+    }
+
+    fun openUnifiedInbox() {
+        viewModelScope.launch {
+            _state.value = _state.value.copy(
+                screen = AppScreen.FEED,
+                loading = true,
+                error = null,
+                feed = null,
+            )
+            try {
+                val feed = api().unifiedFeed(limit = 12)
+                _state.value = _state.value.copy(
+                    loading = false,
+                    feed = feed,
+                    screen = AppScreen.FEED,
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    loading = false,
+                    error = UserFacingErrors.from(e),
+                    screen = AppScreen.HOME,
+                )
+            }
         }
     }
 
@@ -627,7 +653,12 @@ class BrowserViewModel(
     private suspend fun api(): com.baddysays.saylat.data.SaylatApi {
         val base = prefs.baseUrl.first()
         val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
-        return ApiFactory.create(base, slowNetwork = slow, compressionLevel = compressionLevel())
+        return ApiFactory.create(
+            base,
+            slowNetwork = slow,
+            compressionLevel = compressionLevel(),
+            apiKey = com.baddysays.saylat.BuildConfig.PROXY_API_KEY,
+        )
     }
 
     fun dismissReaderBanner(bannerId: String) {

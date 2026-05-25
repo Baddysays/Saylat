@@ -13,6 +13,8 @@ val localProps = Properties().apply {
 // Личный сервер — только в local.properties, не в репозитории (см. local.properties.example)
 val saylatServerUrl: String = localProps.getProperty("saylat.server.url", "").trim()
 val saylatServerUrlField = "\"${saylatServerUrl.replace("\"", "\\\"")}\""
+val saylatApiKey: String = localProps.getProperty("saylat.api.key", "").trim()
+val saylatApiKeyField = "\"${saylatApiKey.replace("\"", "\\\"")}\""
 
 android {
     namespace = "com.baddysays.saylat"
@@ -25,6 +27,7 @@ android {
         versionCode = 36
         versionName = "0.5.26"
         buildConfigField("String", "PUBLIC_SERVER_URL", saylatServerUrlField)
+        buildConfigField("String", "PROXY_API_KEY", saylatApiKeyField)
         buildConfigField(
             "String",
             "GITHUB_UPDATE_JSON",

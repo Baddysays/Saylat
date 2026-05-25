@@ -8,7 +8,9 @@ from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
-from .extract import extract_article
+from .extract import extract_article, extract_plain_fallback
+from .security import ApiKeyMiddleware, RateLimitMiddleware
+from .unified_feed import build_unified_feed
 from .site_feeds import feed_to_article, try_open_site
 from .connect_api import (
     get_connect_status,
@@ -32,6 +34,7 @@ from .models import (
     QueryRequest,
     QueryResponse,
     SaylatArticle,
+    SaylatFeed,
     SearchResponse,
     TelegramCodeRequest,
     TelegramSignInRequest,
@@ -74,9 +77,11 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_methods=["GET", "POST"],
+    allow_methods=["GET", "POST", "PUT"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
+app.add_middleware(ApiKeyMiddleware)
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
@@ -150,6 +155,18 @@ async def search_get(
 async def thin_open(body: OpenRequest) -> OpenResponse:
     try:
         return await open_resource(body)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.get("/api/feed", response_model=SaylatFeed)
+async def unified_feed_get(
+    limit: int = Query(12, ge=1, le=40, description="Элементов с каждого источника"),
+) -> SaylatFeed:
+    try:
+        return await build_unified_feed(per_source=limit)
     except HTTPException:
         raise
     except Exception as exc:
@@ -391,6 +408,10 @@ async def _extract_safe(
     try:
         return await response_cache.get_or_set(cache_key, _load)
     except httpx.HTTPError as exc:
-        raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
+        try:
+            plain = await extract_plain_fallback(parsed)
+            return apply_compression_level(plain, compression)
+        except Exception:
+            raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc

@@ -4,7 +4,7 @@
 
 ## Перед началом
 
-1. Прочитайте [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md).
+1. Прочитайте [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) и [docs/ROADMAP.md](docs/ROADMAP.md).
 2. Установите сервер и (опционально) соберите Android — см. [README.md](README.md).
 
 ## Git-поток

@@ -65,6 +65,11 @@ interface SaylatApi {
 
     @POST("api/act")
     suspend fun act(@Body body: ActRequest): ActResponse
+
+    @GET("api/feed")
+    suspend fun unifiedFeed(
+        @Query("limit") limit: Int = 12,
+    ): SaylatFeed
 }
 
 object ApiFactory {
@@ -76,6 +81,7 @@ object ApiFactory {
         baseUrl: String,
         slowNetwork: Boolean = false,
         compressionLevel: String = CompressionLevel.MEDIUM,
+        apiKey: String = "",
     ): SaylatApi {
         val connectSec = if (slowNetwork) 60L else 30L
         val readSec = if (slowNetwork) 180L else 90L
@@ -86,8 +92,18 @@ object ApiFactory {
                     .build(),
             )
         }
-        val client = OkHttpClient.Builder()
+        val key = apiKey.trim()
+        val apiKeyInterceptor = if (key.isEmpty()) null else Interceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder()
+                    .header("X-API-Key", key)
+                    .build(),
+            )
+        }
+        val clientBuilder = OkHttpClient.Builder()
             .addInterceptor(levelHeader)
+        apiKeyInterceptor?.let { clientBuilder.addInterceptor(it) }
+        val client = clientBuilder
             .connectTimeout(connectSec, TimeUnit.SECONDS)
             .readTimeout(readSec, TimeUnit.SECONDS)
             .writeTimeout(connectSec, TimeUnit.SECONDS)

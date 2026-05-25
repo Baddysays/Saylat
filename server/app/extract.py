@@ -326,3 +326,46 @@ async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArt
         article.stats.payload_bytes = max(1, len(payload.encode("utf-8")))
         article.stats.images_inlined = image_count
         return article
+
+
+async def extract_plain_fallback(url: str) -> SaylatArticle:
+    """Если readability не справился — отдать сырой текст страницы без картинок."""
+    started = time.perf_counter()
+    fetch_url = normalize_fetch_url(url)
+    ua = ua_for_url(fetch_url)
+    async with httpx.AsyncClient(
+        follow_redirects=True,
+        headers={"User-Agent": ua},
+    ) as client:
+        resp = await client.get(fetch_url, timeout=settings.request_timeout_sec)
+        resp.raise_for_status()
+        html = resp.text[: settings.max_html_bytes]
+        original_bytes = len(resp.content)
+
+    soup = BeautifulSoup(html, "lxml")
+    for tag in soup(["script", "style", "noscript", "svg", "nav", "footer", "header"]):
+        tag.decompose()
+    title = _meta_title(html) or _clean_text(soup.title.string if soup.title else "") or urlparse(url).hostname or "Saylat"
+    raw = _clean_text(soup.get_text(separator="\n"))
+    chunks = [ln.strip() for ln in raw.splitlines() if len(ln.strip()) > 20]
+    if not chunks:
+        chunks = [raw[:2000]] if raw else ["Текст страницы недоступен."]
+    blocks = [Block(type="paragraph", text=c[:1200]) for c in chunks[:24]]
+    excerpt = chunks[0][:220] if chunks else ""
+    article = SaylatArticle(
+        url=fetch_url,
+        title=title,
+        excerpt=excerpt,
+        byline="режим plain (fallback)",
+        blocks=blocks,
+        layout_hint="minimal",
+        site_profile="generic",
+        plain_text="\n\n".join(chunks[:40]),
+        stats=ArticleStats(
+            original_bytes=original_bytes,
+            fetch_ms=int((time.perf_counter() - started) * 1000),
+        ),
+    )
+    payload = article.model_dump_json()
+    article.stats.payload_bytes = max(1, len(payload.encode("utf-8")))
+    return article

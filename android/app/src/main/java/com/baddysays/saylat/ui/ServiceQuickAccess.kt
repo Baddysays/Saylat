@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Newspaper
@@ -48,7 +49,9 @@ fun ServiceQuickAccessBlock(
     onOpenServiceSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val anyMessenger = status?.telegram == true || status?.vk == true || status?.mail == true
     val cards = listOf(
+        ServiceCard("inbox", "Все ленты", "TG · VK · почта", Icons.Default.Dashboard, anyMessenger),
         ServiceCard("pikabu", "Пикабу", "Лента постов", Icons.AutoMirrored.Filled.Article, true),
         ServiceCard("vk", "ВКонтакте", "Лента / wall", Icons.Default.People, status?.vk == true),
         ServiceCard("dzen", "Дзен", "Новости", Icons.Default.Newspaper, status?.dzen == true),
@@ -90,7 +93,7 @@ fun ServiceQuickAccessBlock(
                     ServiceQuickCard(
                         card = card,
                         onClick = {
-                            if (!card.connected && card.id != "pikabu") {
+                            if (!card.connected && card.id !in setOf("pikabu", "inbox")) {
                                 onOpenServiceSettings()
                             } else {
                                 onService(card.id)
