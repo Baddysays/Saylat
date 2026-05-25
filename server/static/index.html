@@ -3,104 +3,70 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Saylat Proxy</title>
+  <title>Saylat — ваш сервер</title>
   <style>
-    :root { --bg: #0f1419; --card: #1a2332; --accent: #3dd68c; --text: #e7ecf3; --muted: #8b9cb3; }
+    :root { --bg: #0c1220; --card: #151f2e; --accent: #2dd4bf; --text: #f1f5f9; --muted: #94a3b8; --ok: #4ade80; }
     * { box-sizing: border-box; }
-    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1.5rem; max-width: 52rem; }
-    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
-    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--accent); }
-    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
-    form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
-    input { flex: 1; min-width: 14rem; padding: 0.65rem 0.75rem; border: 1px solid #2a3a52; border-radius: 8px; background: var(--card); color: var(--text); }
-    button { padding: 0.65rem 1rem; border: none; border-radius: 8px; background: var(--accent); color: #0a120c; font-weight: 600; cursor: pointer; }
-    button:disabled { opacity: 0.5; cursor: wait; }
-    .links a { color: var(--accent); }
-    pre { background: var(--card); border-radius: 8px; padding: 1rem; overflow: auto; font-size: 0.8rem; max-height: 50vh; white-space: pre-wrap; word-break: break-word; }
-    .hit { background: var(--card); border-radius: 10px; padding: 0.75rem; margin: 0.5rem 0; cursor: pointer; border: 1px solid #2a3a52; }
-    .hit:hover { border-color: var(--accent); }
-    .hit b { display: block; margin-bottom: 0.25rem; }
-    .hit small { color: var(--muted); }
-    .err { color: #ff8a8a; }
-    .stats { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
+    body {
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      padding: 1.25rem;
+      line-height: 1.5;
+    }
+    .wrap { max-width: 28rem; margin: 0 auto; }
+    h1 { text-align: center; font-size: 1.6rem; margin: 0.5rem 0; }
+    .tag { text-align: center; color: var(--muted); margin-bottom: 1.25rem; }
+    .card { background: var(--card); border-radius: 14px; padding: 1.1rem 1.25rem; margin-bottom: 1rem; border: 1px solid #243044; }
+    .card h2 { font-size: 0.95rem; margin: 0 0 0.6rem; color: var(--accent); }
+    .cta {
+      display: block; text-align: center; padding: 1rem;
+      border-radius: 14px; background: linear-gradient(135deg, #0f766e, var(--accent));
+      color: #042f2e; font-weight: 800; text-decoration: none; margin: 1rem 0;
+    }
+    code { display: block; margin-top: 0.5rem; padding: 0.6rem; background: #0a0f18; border-radius: 8px; font-size: 0.8rem; word-break: break-all; color: var(--accent); }
+    .status { text-align: center; font-size: 0.9rem; padding: 0.5rem; }
+    .status.ok { color: var(--ok); }
+    .foot { text-align: center; font-size: 0.78rem; color: var(--muted); margin-top: 1.5rem; }
+    .foot a { color: var(--accent); }
+    ul { margin: 0.4rem 0 0; padding-left: 1.2rem; color: var(--muted); font-size: 0.9rem; }
   </style>
 </head>
 <body>
-  <p style="text-align:center;margin:0 0 1rem"><img src="/static/saylat-logo.png" alt="Saylat" width="96" style="border-radius:18px" /></p>
-  <h1 style="text-align:center">Saylat</h1>
-  <p class="sub" style="text-align:center">легче салата · <a href="/docs">Swagger</a> · <a href="/health">health</a> · <a href="/app/download/saylat.apk">APK</a></p>
+  <div class="wrap">
+    <h1>Saylat</h1>
+    <p class="tag">личный прокси для медленного интернета · только ваш сервер</p>
+    <p id="status" class="status">Проверка…</p>
 
-  <h2>Поиск (SearXNG через прокси)</h2>
-  <form id="search-form">
-    <input type="search" id="q" placeholder="Запрос" required value="saylat browser" />
-    <button type="submit">Искать</button>
-  </form>
-  <p class="stats" id="search-stats"></p>
-  <div id="hits"></div>
+    <a class="cta" href="/app/download/saylat.apk">Скачать APK на этот телефон</a>
 
-  <h2>Извлечь статью</h2>
-  <form id="extract-form">
-    <input type="url" id="url" placeholder="https://example.com" required value="https://example.com" />
-    <button type="submit">Извлечь</button>
-  </form>
-  <p class="stats" id="stats"></p>
-  <pre id="out">Результат extract появится здесь.</pre>
+    <div class="card">
+      <h2>Адрес для приложения</h2>
+      <p style="margin:0;color:var(--muted);font-size:0.92rem">Введите в Saylat при первом запуске:</p>
+      <code id="base-url">…</code>
+    </div>
 
+    <div class="card">
+      <h2>Не светить сервер в интернет</h2>
+      <ul>
+        <li>Закройте порт <strong>8787</strong> в файрволе VPS для всех, кроме своих IP или VPN.</li>
+        <li>Не публикуйте этот адрес в открытом репозитории и соцсетях.</li>
+        <li>Страница и APK доступны только тем, кто знает ваш IP/домен.</li>
+      </ul>
+    </div>
+
+    <p class="foot"><a href="/health">статус</a> · <a href="/docs">API (разработчик)</a></p>
+  </div>
   <script>
-    const hitsEl = document.getElementById('hits');
-    const searchStats = document.getElementById('search-stats');
-
-    document.getElementById('search-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const q = document.getElementById('q').value.trim();
-      hitsEl.innerHTML = '';
-      searchStats.textContent = 'Поиск…';
-      const t0 = performance.now();
-      try {
-        const r = await fetch('/api/search?q=' + encodeURIComponent(q));
-        const body = await r.json();
-        if (!r.ok) throw new Error(body.detail || r.statusText);
-        const ms = Math.round(performance.now() - t0);
-        searchStats.textContent = `${body.results?.length ?? 0} результатов · ${ms} ms (engine: ${body.engine})`;
-        (body.results || []).forEach((hit) => {
-          const div = document.createElement('div');
-          div.className = 'hit';
-          div.innerHTML = `<b>${hit.title}</b><small>${hit.snippet || ''}</small><br><small>${hit.url}</small>`;
-          div.onclick = () => {
-            document.getElementById('url').value = hit.url;
-            document.getElementById('extract-form').requestSubmit();
-            window.scrollTo({ top: document.getElementById('extract-form').offsetTop - 8, behavior: 'smooth' });
-          };
-          hitsEl.appendChild(div);
-        });
-      } catch (err) {
-        searchStats.textContent = String(err.message || err);
-      }
-    });
-
-    document.getElementById('extract-form').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const url = document.getElementById('url').value.trim();
-      const out = document.getElementById('out');
-      const stats = document.getElementById('stats');
-      const t0 = performance.now();
-      out.textContent = 'Загрузка…';
-      out.className = '';
-      stats.textContent = '';
-      try {
-        const r = await fetch('/api/extract?url=' + encodeURIComponent(url));
-        const ms = Math.round(performance.now() - t0);
-        const body = await r.json();
-        if (!r.ok) throw new Error(body.detail || r.statusText);
-        const b = body.stats?.original_bytes ?? 0;
-        const a = body.stats?.payload_bytes ?? 0;
-        const ratio = b ? ((1 - a / b) * 100).toFixed(0) : '—';
-        stats.textContent = `${ms} ms · ${b} → ${a} байт (~${ratio}% сжатие)`;
-        out.textContent = JSON.stringify(body, null, 2);
-      } catch (err) {
-        out.className = 'err';
-        out.textContent = String(err.message || err);
-      }
+    const origin = location.origin;
+    document.getElementById('base-url').textContent = origin;
+    document.querySelector('.cta').href = origin + '/app/download/saylat.apk';
+    fetch('/health').then(r => r.json()).then(() => {
+      document.getElementById('status').textContent = 'Сервер работает';
+      document.getElementById('status').className = 'status ok';
+    }).catch(() => {
+      document.getElementById('status').textContent = 'Сервер запускается…';
     });
   </script>
 </body>

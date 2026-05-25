@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.baddysays.saylat.BuildConfig
 import com.baddysays.saylat.data.ApiFactory
+import com.baddysays.saylat.data.CompressionLevel
 import com.baddysays.saylat.data.ArticleStats
 import com.baddysays.saylat.data.ConnectStatus
 import com.baddysays.saylat.data.OpenRequest
@@ -109,6 +110,12 @@ data class BrowserUiState(
     val cachedNotice: String? = null,
     val offlineCacheEntries: List<PageCache.CachedEntry> = emptyList(),
     val cacheStats: PageCache.CacheStats = PageCache.CacheStats(),
+    val showWelcome: Boolean = false,
+    val welcomeServerDraft: String = "",
+    val needsServerUrlSetup: Boolean = false,
+    val serverReady: Boolean? = null,
+    val serverStatusMessage: String? = null,
+    val customServerEnabled: Boolean = false,
     val replySource: String? = null,
     val replyItemId: String? = null,
     val replyContextId: String? = null,
@@ -170,7 +177,25 @@ class BrowserViewModel(
 
     init {
         viewModelScope.launch {
+            prefs.ensureConsumerReady()
             prefs.ensureSlowNetworkDefault(appContext)
+            val onboarded = prefs.onboardingDone.first()
+            val stored = prefs.baseUrl.first()
+            val needsUrl = SaylatPrefs.needsServerSetup(stored)
+            val draft = when {
+                stored.isNotBlank() && !needsUrl -> stored
+                SaylatPrefs.publicServerUrl().isNotBlank() -> SaylatPrefs.publicServerUrl()
+                else -> stored
+            }
+            if (!onboarded) {
+                _state.value = _state.value.copy(
+                    showWelcome = true,
+                    needsServerUrlSetup = needsUrl,
+                    welcomeServerDraft = draft,
+                )
+            }
+            if (!needsUrl) refreshServerStatus()
+            checkForUpdateSilently()
         }
         viewModelScope.launch {
             prefs.slowNetworkMode.collect { enabled ->
@@ -234,9 +259,73 @@ class BrowserViewModel(
                 _state.value = _state.value.copy(dismissedReaderBanners = dismissed)
             }
         }
+        viewModelScope.launch {
+            prefs.customServerEnabled.collect { enabled ->
+                _state.value = _state.value.copy(customServerEnabled = enabled)
+            }
+        }
         refreshConnectStatus()
         checkWhatsNewOnLaunch()
         refreshOfflineCache()
+    }
+
+    fun setWelcomeServerDraft(url: String) {
+        _state.value = _state.value.copy(welcomeServerDraft = url)
+    }
+
+    fun dismissWelcome() {
+        viewModelScope.launch {
+            val draft = _state.value.welcomeServerDraft.trim()
+            if (_state.value.needsServerUrlSetup && draft.startsWith("http")) {
+                prefs.setBaseUrl(draft)
+                prefs.setCustomServerEnabled(true)
+            }
+            prefs.setOnboardingDone()
+            _state.value = _state.value.copy(showWelcome = false)
+            refreshServerStatus()
+        }
+    }
+
+    fun refreshServerStatus() {
+        viewModelScope.launch {
+            val base = prefs.baseUrl.first()
+            _state.value = _state.value.copy(serverReady = null, serverStatusMessage = "Проверяем сервер…")
+            val result = withContext(Dispatchers.IO) {
+                NetworkDiagnostics.runFullTest(base, _state.value.slowNetworkMode)
+            }
+            _state.value = _state.value.copy(
+                serverReady = result.ok,
+                serverStatusMessage = if (result.ok) {
+                    "Интернет через Saylat готов"
+                } else {
+                    result.error ?: "Нет связи с сервером — проверьте сеть"
+                },
+                networkTestResult = result,
+            )
+        }
+    }
+
+    private fun checkForUpdateSilently() {
+        viewModelScope.launch {
+            try {
+                when (val check = AppUpdateManager(appContext).checkForUpdate()) {
+                    is UpdateCheckResult.Available -> {
+                        _state.value = _state.value.copy(
+                            updateStatus = "Доступно ${check.info.version_name} — Настройки → Обновить",
+                        )
+                    }
+                    else -> Unit
+                }
+            } catch (_: Exception) {
+                /* офлайн */
+            }
+        }
+    }
+
+    fun setCustomServerEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            prefs.setCustomServerEnabled(enabled)
+        }
     }
 
     fun refreshOfflineCache() {
@@ -263,19 +352,18 @@ class BrowserViewModel(
             try {
                 val lastSeen = prefs.lastSeenVersionCode.first()
                 if (BuildConfig.VERSION_CODE <= lastSeen) return@launch
-                val base = prefs.baseUrl.first()
-                val info = ApiFactory.create(base).appUpdate()
-                if (info.version_code <= BuildConfig.VERSION_CODE) {
-                    _state.value = _state.value.copy(
-                        showWhatsNew = true,
-                        whatsNewVersion = info.version_name.ifBlank { BuildConfig.VERSION_NAME },
-                        whatsNewNotes = info.release_notes.ifBlank {
-                            "Спасибо за обновление Saylat."
-                        },
-                    )
+                when (val check = appUpdateManager.checkForUpdate()) {
+                    is UpdateCheckResult.UpToDate -> {
+                        _state.value = _state.value.copy(
+                            showWhatsNew = true,
+                            whatsNewVersion = check.serverVersionName.ifBlank { BuildConfig.VERSION_NAME },
+                            whatsNewNotes = "Спасибо за обновление Saylat.",
+                        )
+                    }
+                    is UpdateCheckResult.Available -> Unit
                 }
             } catch (_: Exception) {
-                /* прокси недоступен */
+                /* GitHub недоступен */
             }
         }
     }
@@ -454,7 +542,11 @@ class BrowserViewModel(
                 error = null,
             )
             try {
-                val article = api().extract(LAYOUT_LAB_SAMPLE_URL, images = extractImagesMode())
+                val article = api().extract(
+                    LAYOUT_LAB_SAMPLE_URL,
+                    images = extractImagesMode(),
+                    level = compressionLevel(),
+                )
                 val comparison = withContext(Dispatchers.Default) {
                     LayoutLabMetrics.compare(article)
                 }
@@ -525,10 +617,17 @@ class BrowserViewModel(
         }
     }
 
+    private suspend fun compressionLevel(): String {
+        val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
+        val smartOn = prefs.smartLayoutEnabled.first()
+        val smartAvail = DeviceCapabilities.canRunSmartLayout(appContext)
+        return CompressionLevel.resolve(slow, smartOn, smartAvail)
+    }
+
     private suspend fun api(): com.baddysays.saylat.data.SaylatApi {
         val base = prefs.baseUrl.first()
         val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
-        return ApiFactory.create(base, slowNetwork = slow)
+        return ApiFactory.create(base, slowNetwork = slow, compressionLevel = compressionLevel())
     }
 
     fun dismissReaderBanner(bannerId: String) {
@@ -949,11 +1048,27 @@ class BrowserViewModel(
         useSmartLayout: Boolean = false,
         smartEnhanceFromPrefs: Boolean = false,
     ) {
+        if (article.compression_level == CompressionLevel.LIGHT) {
+            _state.value = _state.value.copy(
+                article = article,
+                plan = null,
+                pageLoadStats = article.stats,
+                layoutEnhancing = false,
+                readerUseSmartLayout = false,
+            )
+            withContext(Dispatchers.IO) { PageCache.putArticle(appContext, article) }
+            refreshOfflineCache()
+            return
+        }
+
         val reader = prefs.readerMode.first()
-        val wantSmart = useSmartLayout ||
-            (smartEnhanceFromPrefs &&
-                prefs.smartLayoutEnabled.first() &&
-                DeviceCapabilities.canRunSmartLayout(appContext))
+        val isFull = article.compression_level == CompressionLevel.FULL
+        val wantSmart = isFull && (
+            useSmartLayout ||
+                (smartEnhanceFromPrefs &&
+                    prefs.smartLayoutEnabled.first() &&
+                    DeviceCapabilities.canRunSmartLayout(appContext))
+            )
         val quickPlan = withContext(Dispatchers.Default) {
             val base = SmartLayoutCoordinator.quickRender(article)
             ArticleDisplayEnricher.enrich(base, article, reader)
@@ -1025,12 +1140,12 @@ class BrowserViewModel(
                 error = null,
             )
             try {
-                val base = prefs.baseUrl.first()
-                when (val check = appUpdateManager.checkForUpdate(base)) {
+                when (val check = appUpdateManager.checkForUpdate()) {
                     is UpdateCheckResult.UpToDate -> {
                         _state.value = _state.value.copy(
                             updateChecking = false,
-                            updateStatus = "У вас последняя версия",
+                            updateStatus = "У вас ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}). " +
+                                "На сервере ${check.serverVersionName} (${check.serverVersionCode}) — обновление не требуется",
                         )
                     }
                     is UpdateCheckResult.Available -> {
@@ -1166,6 +1281,7 @@ class BrowserViewModel(
                     url = url,
                     resource_id = resourceId,
                     images = extractImagesMode(),
+                    level = compressionLevel(),
                 ),
             )
             applyOpenResponse(response, urlInput = url ?: _urlInput.value)

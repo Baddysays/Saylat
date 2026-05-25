@@ -7,6 +7,7 @@ BlockType = Literal["heading", "paragraph", "image", "list", "quote", "divider",
 LayoutHint = Literal["article", "feed", "minimal", "gallery"]
 SiteProfile = Literal["generic", "pikabu"]
 StripRenderEngine = Literal["pillow", "browser", "browser_fallback_pillow"]
+CompressionLevel = Literal["light", "medium", "full"]
 
 
 class TextSpan(BaseModel):
@@ -35,6 +36,18 @@ class ArticleStats(BaseModel):
     fetch_ms: int = 0
 
 
+class ArticleLink(BaseModel):
+    text: str
+    href: str
+
+
+class CssHints(BaseModel):
+    primary_color: str | None = None
+    background_color: str | None = None
+    body_font_size_sp: float | None = None
+    heading_color: str | None = None
+
+
 class SaylatArticle(BaseModel):
     url: str
     title: str
@@ -45,6 +58,10 @@ class SaylatArticle(BaseModel):
     stats: ArticleStats = Field(default_factory=ArticleStats)
     layout_hint: LayoutHint = "article"
     site_profile: SiteProfile = "generic"
+    compression_level: CompressionLevel = "medium"
+    plain_text: str = ""
+    links: list[ArticleLink] = Field(default_factory=list)
+    css_hints: CssHints | None = None
 
 
 ImagesMode = Literal["normal", "tiny", "off", "layout"]
@@ -53,6 +70,7 @@ ImagesMode = Literal["normal", "tiny", "off", "layout"]
 class ExtractRequest(BaseModel):
     url: HttpUrl
     images: ImagesMode = "normal"
+    level: CompressionLevel = "medium"
 
 
 class SearchHit(BaseModel):
@@ -109,6 +127,8 @@ class HealthResponse(BaseModel):
     app_version_code: int = 0
     app_version_name: str = ""
     playwright: PlaywrightStatus | None = None
+    cache_entries: int = 0
+    cache_hits: int = 0
 
 
 FeedItemKind = Literal["message", "chat", "thread", "link", "notice"]
@@ -153,6 +173,7 @@ class OpenRequest(BaseModel):
     url: str | None = None
     resource_id: str | None = None
     images: ImagesMode = "normal"
+    level: CompressionLevel = "medium"
 
 
 class OpenResponse(BaseModel):

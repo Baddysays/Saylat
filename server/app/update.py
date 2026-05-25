@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from fastapi import HTTPException
@@ -8,15 +9,30 @@ from .models import AppUpdateInfo
 
 _RELEASES_DIR = Path(__file__).resolve().parent.parent / "releases"
 _APK_NAME = "saylat.apk"
+_META_NAME = "apk-meta.json"
+
+
+def _load_apk_meta() -> dict | None:
+    path = _RELEASES_DIR / _META_NAME
+    if not path.is_file():
+        return None
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return None
 
 
 def get_update_info(base_url: str) -> AppUpdateInfo:
     base = base_url.rstrip("/")
+    meta = _load_apk_meta()
+    version_code = int(meta["version_code"]) if meta and "version_code" in meta else settings.app_version_code
+    version_name = str(meta.get("version_name", settings.app_version_name)) if meta else settings.app_version_name
+    release_notes = str(meta.get("release_notes", settings.app_release_notes)) if meta else settings.app_release_notes
     return AppUpdateInfo(
-        version_code=settings.app_version_code,
-        version_name=settings.app_version_name,
+        version_code=version_code,
+        version_name=version_name,
         apk_url=f"{base}/app/download/saylat.apk",
-        release_notes=settings.app_release_notes,
+        release_notes=release_notes,
         mandatory=settings.app_update_mandatory,
     )
 

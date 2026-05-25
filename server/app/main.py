@@ -42,6 +42,13 @@ from .search import search_web
 from .thin_client import act_on_item, open_resource, query_feed
 from .translate import translate_texts
 from .update import apk_file_response, get_update_info
+from .url_safety import validate_public_http_url
+from .response_cache import response_cache
+from .compression_levels import (
+    apply_compression_level,
+    images_mode_for_level,
+    parse_compression_level,
+)
 from .proxy_page import fetch_proxy_html
 from .visual_render import build_visual_page
 from .browser_strips import BrowserStripsError, playwright_render_status
@@ -99,10 +106,13 @@ async def bench_download_lite() -> Response:
 @app.get("/health", response_model=HealthResponse)
 async def health() -> HealthResponse:
     pw = playwright_render_status()
+    cache = response_cache.stats()
     return HealthResponse(
         searx_instance=settings.searx_instance,
         app_version_code=settings.app_version_code,
         app_version_name=settings.app_version_name,
+        cache_entries=cache["entries"],
+        cache_hits=cache["hits"],
         playwright=PlaywrightStatus(
             enabled=bool(pw["enabled"]),
             available=bool(pw["available"]),
@@ -277,11 +287,16 @@ async def render_visual(
         pattern="^(normal|tiny|off|layout)$",
     ),
 ) -> VisualPageResponse:
-    parsed = url.strip()
-    if not parsed.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Only http/https URLs supported")
     try:
-        return await build_visual_page(parsed, images_mode=images)
+        parsed = validate_public_http_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cache_key = f"visual:{parsed}:{images}"
+    try:
+        return await response_cache.get_or_set(
+            cache_key,
+            lambda: build_visual_page(parsed, images_mode=images),
+        )
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
     except Exception as exc:
@@ -302,11 +317,16 @@ async def render_strips(
         pattern="^(auto|browser|pillow)$",
     ),
 ) -> StripPageResponse:
-    parsed = url.strip()
-    if not parsed.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Only http/https URLs supported")
     try:
-        return await build_strip_page(parsed, images_mode=images, engine=engine)
+        parsed = validate_public_http_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    cache_key = f"strips:{parsed}:{images}:{engine}"
+    try:
+        return await response_cache.get_or_set(
+            cache_key,
+            lambda: build_strip_page(parsed, images_mode=images, engine=engine),
+        )
     except BrowserStripsError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except httpx.HTTPError as exc:
@@ -317,33 +337,59 @@ async def render_strips(
 
 @app.get("/api/extract", response_model=SaylatArticle)
 async def extract_get(
+    request: Request,
     url: str = Query(..., description="Целевой URL"),
     images: str = Query(
         "normal",
-        description="normal | tiny (~1–2 KB JPEG) | off",
+        description="normal | tiny (~1–2 KB JPEG) | off | layout",
         pattern="^(normal|tiny|off|layout)$",
     ),
+    level: str = Query(
+        "medium",
+        description="light | medium | full",
+        pattern="^(light|medium|full)$",
+    ),
 ) -> SaylatArticle:
-    return await _extract_safe(url, images=images)
+    header = request.headers.get("x-saylat-level") or request.headers.get("x-saylat-compression-level")
+    return await _extract_safe(url, images=images, level=level, level_header=header)
 
 
 @app.post("/api/extract", response_model=SaylatArticle)
 async def extract_post(body: ExtractRequest) -> SaylatArticle:
-    return await _extract_safe(str(body.url), images=body.images)
+    return await _extract_safe(str(body.url), images=body.images, level=body.level)
 
 
-async def _extract_safe(url: str, *, images: str = "normal") -> SaylatArticle:
-    parsed = url.strip()
-    if not parsed.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Only http/https URLs supported")
+async def _extract_safe(
+    url: str,
+    *,
+    images: str = "normal",
+    level: str = "medium",
+    level_header: str | None = None,
+) -> SaylatArticle:
     try:
-        opened = await try_open_site(parsed, images_mode=images)
+        parsed = validate_public_http_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    compression = parse_compression_level(level, level_header)
+    images_mode = images_mode_for_level(compression, images)
+    cache_key = f"extract:{parsed}:{images_mode}:{compression}"
+
+    async def _load() -> SaylatArticle:
+        opened = await try_open_site(parsed, images_mode=images_mode)
         if opened is not None:
             if opened.kind == "article" and opened.article is not None:
-                return opened.article
-            if opened.kind == "feed" and opened.feed is not None:
-                return feed_to_article(parsed, opened.feed)
-        return await extract_article(parsed, images_mode=images)
+                article = opened.article
+            elif opened.kind == "feed" and opened.feed is not None:
+                article = feed_to_article(parsed, opened.feed)
+            else:
+                article = await extract_article(parsed, images_mode=images_mode)
+        else:
+            article = await extract_article(parsed, images_mode=images_mode)
+        return apply_compression_level(article, compression)
+
+    try:
+        return await response_cache.get_or_set(cache_key, _load)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
     except Exception as exc:

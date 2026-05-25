@@ -1,6 +1,8 @@
 package com.baddysays.saylat.prefs
 
 import android.content.Context
+import android.os.Build
+import com.baddysays.saylat.BuildConfig
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -26,9 +28,11 @@ class SaylatPrefs(private val context: Context) {
     private val readerModeKey = stringPreferencesKey("reader_mode")
     private val dismissedBannersKey = stringPreferencesKey("dismissed_reader_banners")
     private val lastSeenVersionKey = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
+    private val onboardingDoneKey = booleanPreferencesKey("onboarding_done")
+    private val customServerKey = booleanPreferencesKey("custom_server_enabled")
 
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[serverKey] ?: DEFAULT_EMULATOR
+        prefs[serverKey] ?: defaultProxyUrl()
     }
 
     val smartLayoutEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
@@ -77,6 +81,14 @@ class SaylatPrefs(private val context: Context) {
 
     val lastSeenVersionCode: Flow<Int> = context.dataStore.data.map { prefs ->
         prefs[lastSeenVersionKey] ?: 0
+    }
+
+    val onboardingDone: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[onboardingDoneKey] ?: false
+    }
+
+    val customServerEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[customServerKey] ?: false
     }
 
     suspend fun setBaseUrl(url: String) {
@@ -146,6 +158,44 @@ class SaylatPrefs(private val context: Context) {
         context.dataStore.edit { it[lastSeenVersionKey] = code }
     }
 
+    suspend fun setOnboardingDone() {
+        context.dataStore.edit { it[onboardingDoneKey] = true }
+    }
+
+    suspend fun setCustomServerEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[customServerKey] = enabled
+            if (!enabled && !isEmulatorDevice()) {
+                val baked = publicServerUrl()
+                if (baked.isNotEmpty()) prefs[serverKey] = baked
+            }
+        }
+    }
+
+    suspend fun ensureConsumerReady() {
+        migrateProxyUrlFromEmulator()
+        val baked = publicServerUrl()
+        if (baked.isNotEmpty() && !isEmulatorDevice()) {
+            context.dataStore.edit { prefs ->
+                val custom = prefs[customServerKey] ?: false
+                if (!custom) prefs[serverKey] = baked
+            }
+        }
+    }
+
+    /** Убираем адрес эмулятора на реальном телефоне — пользователь введёт свой. */
+    suspend fun migrateProxyUrlFromEmulator() {
+        if (Companion.isEmulatorDeviceStatic()) return
+        context.dataStore.edit { prefs ->
+            val current = prefs[serverKey]?.trim().orEmpty()
+            if (current == DEFAULT_EMULATOR) {
+                prefs.remove(serverKey)
+            }
+        }
+    }
+
+    private fun isEmulatorDevice(): Boolean = Companion.isEmulatorDeviceStatic()
+
     suspend fun ensureSlowNetworkDefault(context: android.content.Context) {
         context.dataStore.edit { prefs ->
             if (prefs[slowNetworkKey] == null) {
@@ -158,7 +208,24 @@ class SaylatPrefs(private val context: Context) {
     companion object {
         const val DEFAULT_TRANSLATE_TARGET = "ru"
         const val DEFAULT_EMULATOR = "http://10.0.2.2:8787"
-        const val DEFAULT_PRODUCTION = "http://157.22.202.235:8787"
+        /** Пусто в открытой сборке — адрес задаётся при установке сервера или в local.properties. */
+        fun publicServerUrl(): String = BuildConfig.PUBLIC_SERVER_URL.trim()
+
+        fun defaultProxyUrl(): String =
+            if (isEmulatorDeviceStatic()) DEFAULT_EMULATOR
+            else publicServerUrl()
+
+        fun needsServerSetup(storedUrl: String?): Boolean {
+            val u = storedUrl?.trim().orEmpty()
+            if (u.isEmpty()) return true
+            if (!isEmulatorDeviceStatic() && u == DEFAULT_EMULATOR) return true
+            return false
+        }
+
+        private fun isEmulatorDeviceStatic(): Boolean =
+            Build.FINGERPRINT.contains("generic", ignoreCase = true) ||
+                Build.MODEL.contains("sdk_gphone", ignoreCase = true) ||
+                Build.MODEL.contains("Emulator", ignoreCase = true)
         const val DEFAULT_SEARX_INSTANCE = "https://searx.tiekoetter.com"
         private const val MAX_RECENT = 8
         private const val RECENT_SEP = "\u001E"

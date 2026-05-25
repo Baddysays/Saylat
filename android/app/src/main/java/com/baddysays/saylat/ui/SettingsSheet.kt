@@ -4,7 +4,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -29,6 +31,7 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -102,6 +105,9 @@ fun SettingsSheet(
     onSettingsTabChange: (SettingsTab) -> Unit = {},
     cacheStats: PageCache.CacheStats = PageCache.CacheStats(),
     onClearAppCache: () -> Unit = {},
+    customServerEnabled: Boolean = false,
+    serverReady: Boolean? = null,
+    onCustomServerChange: (Boolean) -> Unit = {},
 ) {
     if (!visible) return
 
@@ -159,6 +165,9 @@ fun SettingsSheet(
             onSettingsTabChange = onSettingsTabChange,
             cacheStats = cacheStats,
             onClearAppCache = onClearAppCache,
+            customServerEnabled = customServerEnabled,
+            serverReady = serverReady,
+            onCustomServerChange = onCustomServerChange,
         )
     }
 }
@@ -212,8 +221,12 @@ private fun SettingsSheetContent(
     onSettingsTabChange: (SettingsTab) -> Unit,
     cacheStats: PageCache.CacheStats,
     onClearAppCache: () -> Unit,
+    customServerEnabled: Boolean,
+    serverReady: Boolean?,
+    onCustomServerChange: (Boolean) -> Unit,
 ) {
     var serverDraft by remember(serverUrl) { mutableStateOf(serverUrl) }
+    var showAdvancedServer by remember { mutableStateOf(customServerEnabled) }
     var searxDraft by remember(searxInstanceUrl) { mutableStateOf(searxInstanceUrl) }
     val fieldColors = OutlinedTextFieldDefaults.colors(
         focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
@@ -227,7 +240,7 @@ private fun SettingsSheetContent(
             .padding(bottom = 32.dp),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            SaylatBrandMark(expanded = true, iconSize = 44.dp)
+            SaylatBrandMark(expanded = false, iconSize = 36.dp, showWordmark = false)
             Text(
                 "Настройки",
                 style = MaterialTheme.typography.headlineSmall,
@@ -373,48 +386,61 @@ private fun SettingsSheetContent(
 
                 SettingsTab.NETWORK -> {
                     SettingsTipCard(
-                        title = "Прокси Saylat",
-                        body = "Телефон получает уже сжатые карточки. Укажите адрес вашего VPS (или эмулятора при разработке) и проверьте связь тестом ниже.",
+                        title = "Интернет через Saylat",
+                        body = when (serverReady) {
+                            true -> "Сервер отвечает — сайты и поиск работают. Настраивать ничего не нужно."
+                            false -> "Сервер не доступен. Проверьте мобильный интернет или Wi‑Fi."
+                            null -> "Проверяем связь…"
+                        },
                     )
-                    SettingsSectionCard(title = "Адрес сервера", subtitle = "Base URL прокси") {
-                        OutlinedTextField(
-                            value = serverDraft,
-                            onValueChange = { serverDraft = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            label = { Text("URL") },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = fieldColors,
-                        )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilterChip(
-                                selected = serverDraft == SaylatPrefs.DEFAULT_EMULATOR,
-                                onClick = { serverDraft = SaylatPrefs.DEFAULT_EMULATOR },
-                                label = { Text("Эмулятор") },
-                            )
-                            FilterChip(
-                                selected = serverDraft == SaylatPrefs.DEFAULT_PRODUCTION,
-                                onClick = { serverDraft = SaylatPrefs.DEFAULT_PRODUCTION },
-                                label = { Text("VPS") },
-                            )
-                        }
-                        Button(
-                            onClick = { onSaveServer(serverDraft) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
-                        ) {
-                            Text("Сохранить адрес")
-                        }
-                    }
-                    SettingsSectionCard(title = "Проверка связи") {
+                    SettingsSectionCard(title = "Связь", subtitle = "Автоматически") {
                         NetworkTestCard(
-                            serverUrl = serverDraft.ifBlank { serverUrl },
+                            serverUrl = serverUrl,
                             testing = networkTesting,
                             result = networkTestResult,
                             onRunTest = onRunNetworkTest,
                             compact = true,
                             slowNetworkMode = slowNetworkMode,
                         )
+                    }
+                    SettingsSectionCard(title = "Свой сервер", subtitle = "Только если вы подняли VPS сами") {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text("Указать свой адрес", style = MaterialTheme.typography.bodyMedium)
+                            Switch(
+                                checked = showAdvancedServer,
+                                onCheckedChange = {
+                                    showAdvancedServer = it
+                                    onCustomServerChange(it)
+                                },
+                            )
+                        }
+                        if (showAdvancedServer) {
+                            OutlinedTextField(
+                                value = serverDraft,
+                                onValueChange = { serverDraft = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                singleLine = true,
+                                label = { Text("Адрес сервера") },
+                                placeholder = { Text("http://ваш-ip:8787") },
+                                shape = RoundedCornerShape(14.dp),
+                                colors = fieldColors,
+                            )
+                            Button(
+                                onClick = { onSaveServer(serverDraft) },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 8.dp),
+                                shape = RoundedCornerShape(14.dp),
+                            ) {
+                                Text("Сохранить")
+                            }
+                        }
                     }
                     SettingsSectionCard(title = "Поиск", subtitle = "Через прокси Saylat") {
                         Text(

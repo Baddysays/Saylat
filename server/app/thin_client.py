@@ -5,6 +5,7 @@ import time
 from fastapi import HTTPException
 
 from .connectors import dzen_conn, mail_conn, telegram_conn, vk_conn
+from .compression_levels import apply_compression_level, images_mode_for_level
 from .extract import extract_article
 from .site_feeds import try_open_site
 from .models import (
@@ -29,10 +30,17 @@ async def open_resource(req: OpenRequest) -> OpenResponse:
         url = (req.url or "").strip()
         if not url.startswith(("http://", "https://")):
             raise HTTPException(status_code=400, detail="url required for target=url")
-        opened = await try_open_site(url, images_mode=req.images)
+        level = req.level
+        images_mode = images_mode_for_level(level, req.images)
+        opened = await try_open_site(url, images_mode=images_mode)
         if opened is not None:
+            if opened.kind == "article" and opened.article is not None:
+                opened.article = apply_compression_level(opened.article, level)
             return opened
-        article = await extract_article(url, images_mode=req.images)
+        article = apply_compression_level(
+            await extract_article(url, images_mode=images_mode),
+            level,
+        )
         return OpenResponse(kind="article", article=article)
 
     if target == "telegram":

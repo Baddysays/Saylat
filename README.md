@@ -9,6 +9,16 @@
 
 *by **baddysays*** · `com.baddysays.saylat`
 
+## Личный сервер (не публичный сервис)
+
+| Шаг | Действие |
+|-----|----------|
+| VPS | `curl -fsSL .../install-saylat-server.sh \| bash` на **вашем** сервере |
+| Телефон | `http://ВАШ_IP:8787/` → APK → при первом запуске ввести **тот же** адрес |
+
+Подробно: **[docs/DLYA-POLZOVATELYA.md](docs/DLYA-POLZOVATELYA.md)** · файрвол: **[docs/LICHNYI-SERVER.md](docs/LICHNYI-SERVER.md)**.  
+IP **не** хранится в открытом репозитории — только у вас в `local.properties` / `saylat.deploy.env`.
+
 ## Документация
 
 | Документ | Содержание |
@@ -18,6 +28,7 @@
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Как вносить изменения |
 | [shared/article.schema.json](shared/article.schema.json) | JSON-контракт API |
 | [docs/SMART_LAYOUT.md](docs/SMART_LAYOUT.md) | Умная вёрстка (прототип) |
+| [docs/COMPRESSION_LEVELS.md](docs/COMPRESSION_LEVELS.md) | Light / Medium / Full |
 
 ## Архитектура
 

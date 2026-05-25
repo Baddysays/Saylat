@@ -1,8 +1,18 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
 }
+
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.isFile) f.inputStream().use { load(it) }
+}
+// Личный сервер — только в local.properties, не в репозитории (см. local.properties.example)
+val saylatServerUrl: String = localProps.getProperty("saylat.server.url", "").trim()
+val saylatServerUrlField = "\"${saylatServerUrl.replace("\"", "\\\"")}\""
 
 android {
     namespace = "com.baddysays.saylat"
@@ -12,14 +22,24 @@ android {
         applicationId = "com.baddysays.saylat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 32
-        versionName = "0.5.21"
+        versionCode = 36
+        versionName = "0.5.26"
+        buildConfigField("String", "PUBLIC_SERVER_URL", saylatServerUrlField)
+        buildConfigField(
+            "String",
+            "GITHUB_UPDATE_JSON",
+            "\"https://raw.githubusercontent.com/Baddysays/Saylat/main/releases/update.json\"",
+        )
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "DEFAULT_PROXY_URL", "\"http://10.0.2.2:8787\"")
+        }
         release {
             isMinifyEnabled = false
             signingConfig = signingConfigs.getByName("debug")
+            buildConfigField("String", "DEFAULT_PROXY_URL", saylatServerUrlField)
         }
     }
 

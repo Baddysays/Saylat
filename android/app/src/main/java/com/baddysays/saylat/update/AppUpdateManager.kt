@@ -7,8 +7,9 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import com.baddysays.saylat.BuildConfig
-import com.baddysays.saylat.data.ApiFactory
 import com.baddysays.saylat.data.AppUpdateInfo
+import com.squareup.moshi.Moshi
+import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -17,24 +18,54 @@ import java.io.File
 import java.util.concurrent.TimeUnit
 
 sealed class UpdateCheckResult {
-    data object UpToDate : UpdateCheckResult()
+    data class UpToDate(val serverVersionCode: Int, val serverVersionName: String) : UpdateCheckResult()
     data class Available(val info: AppUpdateInfo) : UpdateCheckResult()
 }
 
 class AppUpdateManager(private val context: Context) {
+
+    private val moshi = Moshi.Builder().add(KotlinJsonAdapterFactory()).build()
+    private val updateAdapter = moshi.adapter(AppUpdateInfo::class.java)
 
     private val http = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    suspend fun checkForUpdate(proxyBaseUrl: String): UpdateCheckResult {
-        val api = ApiFactory.create(proxyBaseUrl)
-        val info = api.appUpdate()
-        return if (info.version_code > BuildConfig.VERSION_CODE) {
+    /** Проверка обновления через GitHub (releases/update.json), не через ваш VPS. */
+    suspend fun checkForUpdate(): UpdateCheckResult = withContext(Dispatchers.IO) {
+        val info = fetchGithubUpdateInfo()
+        if (info.version_code > BuildConfig.VERSION_CODE) {
             UpdateCheckResult.Available(info)
         } else {
-            UpdateCheckResult.UpToDate
+            UpdateCheckResult.UpToDate(
+                serverVersionCode = info.version_code,
+                serverVersionName = info.version_name,
+            )
+        }
+    }
+
+    private fun fetchGithubUpdateInfo(): AppUpdateInfo {
+        val url = BuildConfig.GITHUB_UPDATE_JSON.trim()
+        if (url.isBlank()) {
+            throw IllegalStateException("Не задан URL метаданных обновления (GitHub)")
+        }
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IllegalStateException("GitHub update.json: HTTP ${response.code}")
+            }
+            val body = response.body?.string()?.trim().orEmpty()
+            if (body.isBlank()) throw IllegalStateException("Пустой update.json на GitHub")
+            val info = updateAdapter.fromJson(body)
+                ?: throw IllegalStateException("Не удалось разобрать update.json")
+            if (info.apk_url.isBlank()) {
+                throw IllegalStateException("В update.json нет apk_url")
+            }
+            return info
         }
     }
 
@@ -47,7 +78,7 @@ class AppUpdateManager(private val context: Context) {
         }
 
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-        val outFile = File(dir, "saylat-update.apk")
+        val outFile = File(dir, "saylat.apk")
         if (outFile.exists()) outFile.delete()
 
         val request = Request.Builder().url(apkUrl).build()
@@ -55,7 +86,7 @@ class AppUpdateManager(private val context: Context) {
             if (!response.isSuccessful) {
                 throw IllegalStateException("Не удалось скачать APK: HTTP ${response.code}")
             }
-            val body = response.body ?: throw IllegalStateException("Пустой ответ сервера")
+            val body = response.body ?: throw IllegalStateException("Пустой ответ")
             body.byteStream().use { input ->
                 outFile.outputStream().use { output -> input.copyTo(output) }
             }
@@ -63,7 +94,7 @@ class AppUpdateManager(private val context: Context) {
 
         if (outFile.length() < 10_000) {
             outFile.delete()
-            throw IllegalStateException("Скачанный файл слишком маленький — проверьте APK на сервере")
+            throw IllegalStateException("Скачанный файл слишком маленький — проверьте релиз на GitHub")
         }
 
         installApk(outFile)

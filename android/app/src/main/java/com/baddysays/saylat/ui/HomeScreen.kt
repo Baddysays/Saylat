@@ -61,6 +61,9 @@ fun HomeContent(
     searchEngine: SearchEngine,
     recentSearches: List<String>,
     serverUrl: String,
+    serverReady: Boolean? = null,
+    serverStatusMessage: String? = null,
+    onRefreshServerStatus: () -> Unit = {},
     networkTesting: Boolean,
     networkTestResult: NetworkTestResult?,
     smartLayoutAvailable: Boolean,
@@ -84,6 +87,15 @@ fun HomeContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { HomeHero(networkTestResult) }
+        item {
+            HomeServerStatusCard(
+                ready = serverReady,
+                message = serverStatusMessage,
+                checking = serverReady == null,
+                onRetry = onRefreshServerStatus,
+                modifier = pad,
+            )
+        }
         item {
             Row(
                 pad.then(Modifier.fillMaxWidth()),
@@ -243,6 +255,84 @@ private fun HomeHero(networkResult: NetworkTestResult?) {
                     networkResult.downloadKbps?.let { HeroChip(NetworkFormat.speedKbps(it)) }
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HomeServerStatusCard(
+    ready: Boolean?,
+    message: String?,
+    checking: Boolean,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val bg = when (ready) {
+        true -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
+        false -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
+        null -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+    }
+    if (ready == false) {
+        Card(
+            onClick = onRetry,
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+        ) {
+            HomeServerStatusRow(ready, message, checking)
+        }
+    } else {
+        Surface(
+            modifier = modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = bg,
+        ) {
+            HomeServerStatusRow(ready, message, checking)
+        }
+    }
+}
+
+@Composable
+private fun HomeServerStatusRow(
+    ready: Boolean?,
+    message: String?,
+    checking: Boolean,
+) {
+    Row(
+        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Icon(
+            when (ready) {
+                true -> Icons.Default.Speed
+                false -> Icons.Default.OfflinePin
+                null -> Icons.Default.Speed
+            },
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                message ?: when (ready) {
+                    true -> "Интернет через Saylat готов"
+                    false -> "Нет связи с сервером"
+                    null -> "Проверяем сервер…"
+                },
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            if (ready == false) {
+                Text(
+                    "Нажмите, чтобы повторить",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
+            }
+        }
+        if (checking) {
+            androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
         }
     }
 }

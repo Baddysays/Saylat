@@ -53,3 +53,12 @@ server/data/credentials.json
 *.keystore
 !debug.keystore
 secrets/
+saylat.deploy.env
+server/releases/
+
+# Метаданные обновления для GitHub (APK только в Releases, не в git)
+!releases/
+releases/*
+!releases/update.json
+
+# Личный URL сервера при сборке APK (см. android/local.properties.example)

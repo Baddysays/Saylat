@@ -1,0 +1,7 @@
+{
+  "version_code": 36,
+  "version_name": "0.5.26",
+  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.26/saylat.apk",
+  "release_notes": "Три уровня сжатия light/medium/full. Обновления приложения — с GitHub, прокси — ваш личный сервер.",
+  "mandatory": false
+}

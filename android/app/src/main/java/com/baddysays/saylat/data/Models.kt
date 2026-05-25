@@ -3,6 +3,20 @@ package com.baddysays.saylat.data
 import com.squareup.moshi.JsonClass
 
 @JsonClass(generateAdapter = true)
+data class ArticleLink(
+    val text: String,
+    val href: String,
+)
+
+@JsonClass(generateAdapter = true)
+data class CssHints(
+    val primary_color: String? = null,
+    val background_color: String? = null,
+    val body_font_size_sp: Float? = null,
+    val heading_color: String? = null,
+)
+
+@JsonClass(generateAdapter = true)
 data class SaylatArticle(
     val url: String,
     val title: String,
@@ -13,6 +27,10 @@ data class SaylatArticle(
     val stats: ArticleStats = ArticleStats(),
     val layout_hint: String = "article",
     val site_profile: String = "generic",
+    val compression_level: String = "medium",
+    val plain_text: String = "",
+    val links: List<ArticleLink> = emptyList(),
+    val css_hints: CssHints? = null,
 )
 
 @JsonClass(generateAdapter = true)

@@ -45,7 +45,7 @@ docker compose up -d --build
 - Swagger: http://&lt;host&gt;:8787/docs
 - Health: http://&lt;host&gt;:8787/health
 
-Деплой на VPS: `.\scripts\deploy-saylat-vps.ps1` (по умолчанию `157.22.202.235`, каталог `/opt/saylat`).
+Деплой на **ваш** VPS: `.\scripts\deploy-saylat-vps.ps1 -ServerHost "ваш.ip"` или `saylat.deploy.env` (см. `saylat.deploy.env.example`).
 
 ## Требования
 

@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 32
-    app_version_name: str = "0.5.21"
+    app_version_code: int = 36
+    app_version_name: str = "0.5.26"
     app_release_notes: str = (
-        "Полное письмо с IMAP, ответы в Telegram, ad-block на скриншотах, метрики Playwright в /health."
+        "Три уровня сжатия light/medium/full, личный сервер без IP в репозитории."
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"
@@ -33,6 +33,8 @@ class Settings(BaseSettings):
         "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
     )
     allowed_schemes: tuple[str, ...] = ("http", "https")
+    cache_ttl_sec: int = 900
+    cache_max_entries: int = 400
 
     # Playwright — скриншот-полосы (Opera Mini)
     playwright_enabled: bool = True

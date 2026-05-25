@@ -70,22 +70,15 @@ fun SaylatTopBar(
                 ) {
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                 }
-            } else {
-                SaylatBrandMark(
-                    modifier = Modifier.padding(start = 4.dp),
-                    expanded = false,
-                    iconSize = 32.dp,
-                    showWordmark = false,
-                )
             }
 
             when (screen) {
                 AppScreen.HOME -> SaylatBrandMark(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 8.dp),
+                        .padding(horizontal = 12.dp),
                     expanded = true,
-                    iconSize = 52.dp,
+                    iconSize = 40.dp,
                 )
                 else -> {
                     val t = title ?: ""

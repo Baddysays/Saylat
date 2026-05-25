@@ -2,6 +2,7 @@ package com.baddysays.saylat.data
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
+import okhttp3.Interceptor
 import okhttp3.OkHttpClient
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
@@ -16,6 +17,7 @@ interface SaylatApi {
     suspend fun extract(
         @Query("url") url: String,
         @Query("images") images: String = "normal",
+        @Query("level") level: String = "medium",
     ): SaylatArticle
 
     @GET("api/render/visual")
@@ -70,10 +72,22 @@ object ApiFactory {
         .add(KotlinJsonAdapterFactory())
         .build()
 
-    fun create(baseUrl: String, slowNetwork: Boolean = false): SaylatApi {
+    fun create(
+        baseUrl: String,
+        slowNetwork: Boolean = false,
+        compressionLevel: String = CompressionLevel.MEDIUM,
+    ): SaylatApi {
         val connectSec = if (slowNetwork) 60L else 30L
         val readSec = if (slowNetwork) 180L else 90L
+        val levelHeader = Interceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder()
+                    .header("X-Saylat-Level", compressionLevel)
+                    .build(),
+            )
+        }
         val client = OkHttpClient.Builder()
+            .addInterceptor(levelHeader)
             .connectTimeout(connectSec, TimeUnit.SECONDS)
             .readTimeout(readSec, TimeUnit.SECONDS)
             .writeTimeout(connectSec, TimeUnit.SECONDS)

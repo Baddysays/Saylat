@@ -16,7 +16,7 @@ class SearchRepository {
         val proxy = proxyBaseUrl?.trim().orEmpty()
         if (!proxy.startsWith("http")) {
             throw IllegalArgumentException(
-                "Укажите URL прокси Saylat в настройках (например ${com.baddysays.saylat.prefs.SaylatPrefs.DEFAULT_PRODUCTION})",
+                "Укажите адрес вашего Saylat-сервера в настройках (http://IP:8787)",
             )
         }
 

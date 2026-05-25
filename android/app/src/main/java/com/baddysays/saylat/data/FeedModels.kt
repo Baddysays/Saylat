@@ -39,6 +39,7 @@ data class OpenRequest(
     val url: String? = null,
     val resource_id: String? = null,
     val images: String = "normal",
+    val level: String = "medium",
 )
 
 @JsonClass(generateAdapter = true)

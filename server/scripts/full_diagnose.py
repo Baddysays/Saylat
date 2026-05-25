@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -11,7 +12,7 @@ import httpx
 from app.extract import extract_article
 from app.site_feeds import try_open_site
 
-VPS = "http://157.22.202.235:8787"
+VPS = os.environ.get("SAYLAT_TEST_URL", "http://127.0.0.1:8787")
 OUT = Path(__file__).resolve().parent.parent / "data" / "diagnose_report.txt"
 
 

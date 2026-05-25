@@ -57,6 +57,15 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     val searchSeed by viewModel.searchInput.collectAsState()
     val urlSeed by viewModel.urlInput.collectAsState()
 
+    WelcomeSheet(
+        visible = state.showWelcome,
+        needsServerUrl = state.needsServerUrlSetup,
+        serverUrlDraft = state.welcomeServerDraft,
+        onServerUrlChange = viewModel::setWelcomeServerDraft,
+        serverReady = state.serverReady,
+        onStart = viewModel::dismissWelcome,
+    )
+
     if (state.showWhatsNew) {
         WhatsNewSheet(
             visible = true,
@@ -116,6 +125,9 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         onSettingsTabChange = viewModel::setSettingsTab,
         cacheStats = state.cacheStats,
         onClearAppCache = viewModel::clearAppCache,
+        customServerEnabled = state.customServerEnabled,
+        serverReady = state.serverReady,
+        onCustomServerChange = viewModel::setCustomServerEnabled,
         )
     }
 
@@ -298,8 +310,11 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         searchEngine = state.searchEngine,
                         recentSearches = state.recentSearches,
                         serverUrl = state.serverUrl,
+                        serverReady = state.serverReady,
+                        serverStatusMessage = state.serverStatusMessage,
                         networkTesting = state.networkTesting,
                         networkTestResult = state.networkTestResult,
+                        onRefreshServerStatus = viewModel::refreshServerStatus,
                         smartLayoutAvailable = state.smartLayoutAvailable,
                         layoutLabLoading = state.layoutLabLoading,
                         onQuickLink = viewModel::openQuickLink,
@@ -340,6 +355,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                             else -> ReaderBody(
                                 loading = state.loading,
                                 translating = state.translating,
+                                article = state.article,
                                 plan = state.plan,
                                 showStatsCards = true,
                                 onLinkClick = viewModel::openLink,
@@ -352,6 +368,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                             ReaderBody(
                                 loading = true,
                                 translating = false,
+                                article = null,
                                 plan = null,
                                 onLinkClick = viewModel::openLink,
                             )
@@ -410,6 +427,7 @@ private fun ReaderUrlBar(
 private fun ReaderBody(
     loading: Boolean,
     translating: Boolean,
+    article: com.baddysays.saylat.data.SaylatArticle?,
     plan: com.baddysays.saylat.engine.RenderPlan?,
     showStatsCards: Boolean = false,
     onLinkClick: (String) -> Unit,
@@ -424,6 +442,10 @@ private fun ReaderBody(
             Spacer(Modifier.height(12.dp))
             Text(if (translating) "Переводим…" else "Сжимаем страницу…")
         }
+        article?.compression_level == "light" -> LightArticleView(
+            article = article,
+            onLinkClick = onLinkClick,
+        )
         plan != null -> ArticleList(
             cards = plan.cards.filter { showStatsCards || it.kind != CardKind.STATS },
             onLinkClick = onLinkClick,
