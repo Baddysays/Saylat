@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saylat.local/schemas/layout-plan.json",
+  "title": "SaylatLayoutPlan",
+  "type": "object",
+  "required": ["layout_hint", "hero_excerpt", "density", "block_order", "source"],
+  "properties": {
+    "layout_hint": { "type": "string", "enum": ["article", "feed", "minimal", "gallery"] },
+    "hero_excerpt": { "type": "string" },
+    "density": { "type": "string", "enum": ["compact", "comfortable", "airy"] },
+    "block_order": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+    "hide_block_ids": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+    "merge_paragraph_groups": {
+      "type": "array",
+      "items": { "type": "array", "items": { "type": "integer", "minimum": 0 } }
+    },
+    "source": { "type": "string", "enum": ["heuristic", "ai_prototype", "ai_gemma"] }
+  }
+}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saylat Proxy</title>
+  <style>
+    :root { --bg: #0f1419; --card: #1a2332; --accent: #3dd68c; --text: #e7ecf3; --muted: #8b9cb3; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 1.5rem; max-width: 52rem; }
+    h1 { font-size: 1.35rem; margin: 0 0 0.25rem; }
+    h2 { font-size: 1rem; margin: 1.5rem 0 0.5rem; color: var(--accent); }
+    .sub { color: var(--muted); font-size: 0.9rem; margin-bottom: 1.25rem; }
+    form { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    input { flex: 1; min-width: 14rem; padding: 0.65rem 0.75rem; border: 1px solid #2a3a52; border-radius: 8px; background: var(--card); color: var(--text); }
+    button { padding: 0.65rem 1rem; border: none; border-radius: 8px; background: var(--accent); color: #0a120c; font-weight: 600; cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: wait; }
+    .links a { color: var(--accent); }
+    pre { background: var(--card); border-radius: 8px; padding: 1rem; overflow: auto; font-size: 0.8rem; max-height: 50vh; white-space: pre-wrap; word-break: break-word; }
+    .hit { background: var(--card); border-radius: 10px; padding: 0.75rem; margin: 0.5rem 0; cursor: pointer; border: 1px solid #2a3a52; }
+    .hit:hover { border-color: var(--accent); }
+    .hit b { display: block; margin-bottom: 0.25rem; }
+    .hit small { color: var(--muted); }
+    .err { color: #ff8a8a; }
+    .stats { color: var(--muted); font-size: 0.85rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <h1>Saylat Proxy</h1>
+  <p class="sub">Веб-морда · <a href="/docs">Swagger</a> · <a href="/health">health</a></p>
+
+  <h2>Поиск (SearXNG через прокси)</h2>
+  <form id="search-form">
+    <input type="search" id="q" placeholder="Запрос" required value="saylat browser" />
+    <button type="submit">Искать</button>
+  </form>
+  <p class="stats" id="search-stats"></p>
+  <div id="hits"></div>
+
+  <h2>Извлечь статью</h2>
+  <form id="extract-form">
+    <input type="url" id="url" placeholder="https://example.com" required value="https://example.com" />
+    <button type="submit">Извлечь</button>
+  </form>
+  <p class="stats" id="stats"></p>
+  <pre id="out">Результат extract появится здесь.</pre>
+
+  <script>
+    const hitsEl = document.getElementById('hits');
+    const searchStats = document.getElementById('search-stats');
+
+    document.getElementById('search-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const q = document.getElementById('q').value.trim();
+      hitsEl.innerHTML = '';
+      searchStats.textContent = 'Поиск…';
+      const t0 = performance.now();
+      try {
+        const r = await fetch('/api/search?q=' + encodeURIComponent(q));
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.detail || r.statusText);
+        const ms = Math.round(performance.now() - t0);
+        searchStats.textContent = `${body.results?.length ?? 0} результатов · ${ms} ms (engine: ${body.engine})`;
+        (body.results || []).forEach((hit) => {
+          const div = document.createElement('div');
+          div.className = 'hit';
+          div.innerHTML = `<b>${hit.title}</b><small>${hit.snippet || ''}</small><br><small>${hit.url}</small>`;
+          div.onclick = () => {
+            document.getElementById('url').value = hit.url;
+            document.getElementById('extract-form').requestSubmit();
+            window.scrollTo({ top: document.getElementById('extract-form').offsetTop - 8, behavior: 'smooth' });
+          };
+          hitsEl.appendChild(div);
+        });
+      } catch (err) {
+        searchStats.textContent = String(err.message || err);
+      }
+    });
+
+    document.getElementById('extract-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const url = document.getElementById('url').value.trim();
+      const out = document.getElementById('out');
+      const stats = document.getElementById('stats');
+      const t0 = performance.now();
+      out.textContent = 'Загрузка…';
+      out.className = '';
+      stats.textContent = '';
+      try {
+        const r = await fetch('/api/extract?url=' + encodeURIComponent(url));
+        const ms = Math.round(performance.now() - t0);
+        const body = await r.json();
+        if (!r.ok) throw new Error(body.detail || r.statusText);
+        const b = body.stats?.original_bytes ?? 0;
+        const a = body.stats?.payload_bytes ?? 0;
+        const ratio = b ? ((1 - a / b) * 100).toFixed(0) : '—';
+        stats.textContent = `${ms} ms · ${b} → ${a} байт (~${ratio}% сжатие)`;
+        out.textContent = JSON.stringify(body, null, 2);
+      } catch (err) {
+        out.className = 'err';
+        out.textContent = String(err.message || err);
+      }
+    });
+  </script>
+</body>
+</html>

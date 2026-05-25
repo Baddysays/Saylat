@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saylat.local/schemas/article.json",
+  "title": "SaylatArticle",
+  "type": "object",
+  "required": ["url", "title", "blocks", "stats"],
+  "properties": {
+    "url": { "type": "string", "format": "uri" },
+    "title": { "type": "string" },
+    "excerpt": { "type": "string" },
+    "byline": { "type": "string" },
+    "lang": { "type": "string" },
+    "blocks": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/block" }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "original_bytes": { "type": "integer" },
+        "payload_bytes": { "type": "integer" },
+        "images_inlined": { "type": "integer" },
+        "fetch_ms": { "type": "integer" }
+      }
+    },
+    "layout_hint": {
+      "type": "string",
+      "enum": ["article", "feed", "minimal", "gallery"]
+    }
+  },
+  "$defs": {
+    "block": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["heading", "paragraph", "image", "list", "quote", "divider", "link"]
+        },
+        "text": { "type": "string" },
+        "level": { "type": "integer", "minimum": 1, "maximum": 6 },
+        "src": { "type": "string" },
+        "alt": { "type": "string" },
+        "width": { "type": "integer" },
+        "height": { "type": "integer" },
+        "items": { "type": "array", "items": { "type": "string" } },
+        "href": { "type": "string" },
+        "spans": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text"],
+            "properties": {
+              "text": { "type": "string" },
+              "href": { "type": "string" }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,22 @@
+﻿vk len 393292
+vk href="(/wall[^"]+)" 0 []
+vk class="[^"]*PostContentWrapper[^"]*" 0 []
+vk "text"\s*:\s*"([^"]{30,120})" 0 []
+pikabu len 319663
+pikabu stories 34 ['https://pikabu.ru/story/ad_i_ray_14002322#comments', 'https://pikabu.ru/story/ragu_vermeshelevoe_14002057?u=https%3A%2F%2Fpikabu.ru%2Fseries%2Fveselyie_kartinki__54726&t=%D0%92%D0%B5%D1%81%D0%B5%D0%BB%D1%8B%D0%B5%20%D0%BA%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%BA%D0%B8&h=9f2d52badfef7e10f99476597324fd9040401d32', 'https://pikabu.ru/story/elena_troyanskaya_zdorovogo_cheloveka_14002976#comments']
+pikabu rel 0 []
+C:\Users\Admin\Projects\thin-browser\server\.venv\Scripts\python.exe : Traceback (most recent call last):
+C:\Users\Admin\AppData\Local\Temp\ps-script-89e3a615-8b43-4307-8698-96443c472fc6.ps1:79 знак:1
++ C:\Users\Admin\Projects\thin-browser\server\.venv\Scripts\python.exe  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last)::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "C:\Users\Admin\Projects\thin-browser\server\scripts\probe_sites.py", line 34, in <module>
+    print("story og desc", (og.group(1)[:80] if og else None))
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python314\Lib\encodings\cp1251.py", line 19, in encode
+    return codecs.charmap_encode(input,self.errors,encoding_table)[0]
+           ~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'charmap' codec can't encode characters in position 0-3: character maps to <undefined>
+story og desc 

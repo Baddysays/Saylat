@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://saylat.local/schemas/feed.json",
+  "title": "SaylatFeed",
+  "type": "object",
+  "required": ["source", "title", "items"],
+  "properties": {
+    "source": { "type": "string", "description": "article | imap | telegram | search" },
+    "title": { "type": "string" },
+    "subtitle": { "type": "string" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/feedItem" }
+    },
+    "stats": {
+      "type": "object",
+      "properties": {
+        "payload_bytes": { "type": "integer" },
+        "fetch_ms": { "type": "integer" }
+      }
+    }
+  },
+  "$defs": {
+    "feedItem": {
+      "type": "object",
+      "required": ["id", "kind", "title"],
+      "properties": {
+        "id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["message", "chat", "thread", "link", "notice"] },
+        "from": { "type": "string" },
+        "time": { "type": "string" },
+        "title": { "type": "string" },
+        "body": { "type": "string" },
+        "unread": { "type": "boolean" },
+        "href": { "type": "string" },
+        "actions": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["open", "reply", "archive", "delete", "mark_read"] }
+        }
+      }
+    }
+  }
+}

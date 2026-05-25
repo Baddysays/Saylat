@@ -1,0 +1,474 @@
+package com.baddysays.saylat.ui
+
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.baddysays.saylat.BuildConfig
+import com.baddysays.saylat.data.ConnectStatus
+import com.baddysays.saylat.device.DeviceProfile
+import com.baddysays.saylat.network.NetworkTestResult
+import com.baddysays.saylat.prefs.ReaderMode
+import com.baddysays.saylat.prefs.SaylatPrefs
+import com.baddysays.saylat.search.SearchEngine
+import com.baddysays.saylat.ui.theme.AppThemeId
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsSheet(
+    visible: Boolean,
+    serverUrl: String,
+    searchEngine: SearchEngine,
+    searxInstanceUrl: String,
+    smartLayoutEnabled: Boolean,
+    smartLayoutAvailable: Boolean,
+    smartLayoutHint: String?,
+    appTheme: AppThemeId,
+    networkTesting: Boolean,
+    networkTestResult: NetworkTestResult?,
+    slowNetworkMode: Boolean = true,
+    liteImagesEnabled: Boolean = false,
+    readerMode: ReaderMode = ReaderMode.STRIPS,
+    onReaderModeChange: (ReaderMode) -> Unit = {},
+    deviceProfile: DeviceProfile? = null,
+    onDismiss: () -> Unit,
+    onSaveServer: (String) -> Unit,
+    onSearchEngine: (SearchEngine) -> Unit,
+    onSearxInstance: (String) -> Unit,
+    onSmartLayoutChange: (Boolean) -> Unit,
+    onClearRecent: () -> Unit,
+    onAppTheme: (AppThemeId) -> Unit,
+    onRunNetworkTest: () -> Unit,
+    onSlowNetworkChange: (Boolean) -> Unit = {},
+    onLiteImagesChange: (Boolean) -> Unit = {},
+    showPageLoadStats: Boolean = true,
+    onPageLoadStatsChange: (Boolean) -> Unit = {},
+    updateChecking: Boolean = false,
+    updateDownloading: Boolean = false,
+    updateStatus: String? = null,
+    onCheckUpdate: () -> Unit = {},
+    translateTargetLang: String = SaylatPrefs.DEFAULT_TRANSLATE_TARGET,
+    onTranslateTarget: (String) -> Unit = {},
+    connectStatus: ConnectStatus? = null,
+    credentialsDraft: ServiceCredentialsDraft = ServiceCredentialsDraft(),
+    onCredentialsDraftChange: (ServiceCredentialsDraft) -> Unit = {},
+    credentialsLoading: Boolean = false,
+    credentialsSaving: Boolean = false,
+    credentialsMessage: String? = null,
+    telegramCodeSent: Boolean = false,
+    onSaveCredentials: () -> Unit = {},
+    onTelegramRequestCode: () -> Unit = {},
+    onTelegramSignIn: () -> Unit = {},
+    connectLoading: Boolean = false,
+    settingsTab: SettingsTab = SettingsTab.GENERAL,
+    onSettingsTabChange: (SettingsTab) -> Unit = {},
+) {
+    if (!visible) return
+
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.background,
+        dragHandle = { BottomSheetDefaults.DragHandle() },
+    ) {
+        SettingsSheetContent(
+            serverUrl = serverUrl,
+            searchEngine = searchEngine,
+            searxInstanceUrl = searxInstanceUrl,
+            smartLayoutEnabled = smartLayoutEnabled,
+            smartLayoutAvailable = smartLayoutAvailable,
+            smartLayoutHint = smartLayoutHint,
+            appTheme = appTheme,
+            networkTesting = networkTesting,
+            networkTestResult = networkTestResult,
+            slowNetworkMode = slowNetworkMode,
+            liteImagesEnabled = liteImagesEnabled,
+            readerMode = readerMode,
+            onReaderModeChange = onReaderModeChange,
+            deviceProfile = deviceProfile,
+            onSaveServer = onSaveServer,
+            onSearchEngine = onSearchEngine,
+            onSearxInstance = onSearxInstance,
+            onSmartLayoutChange = onSmartLayoutChange,
+            onClearRecent = onClearRecent,
+            onAppTheme = onAppTheme,
+            onRunNetworkTest = onRunNetworkTest,
+            onSlowNetworkChange = onSlowNetworkChange,
+            onLiteImagesChange = onLiteImagesChange,
+            showPageLoadStats = showPageLoadStats,
+            onPageLoadStatsChange = onPageLoadStatsChange,
+            updateChecking = updateChecking,
+            updateDownloading = updateDownloading,
+            updateStatus = updateStatus,
+            onCheckUpdate = onCheckUpdate,
+            translateTargetLang = translateTargetLang,
+            onTranslateTarget = onTranslateTarget,
+            connectStatus = connectStatus,
+            credentialsDraft = credentialsDraft,
+            onCredentialsDraftChange = onCredentialsDraftChange,
+            credentialsLoading = credentialsLoading,
+            credentialsSaving = credentialsSaving,
+            credentialsMessage = credentialsMessage,
+            telegramCodeSent = telegramCodeSent,
+            onSaveCredentials = onSaveCredentials,
+            onTelegramRequestCode = onTelegramRequestCode,
+            onTelegramSignIn = onTelegramSignIn,
+            connectLoading = connectLoading,
+            settingsTab = settingsTab,
+            onSettingsTabChange = onSettingsTabChange,
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SettingsSheetContent(
+    serverUrl: String,
+    searchEngine: SearchEngine,
+    searxInstanceUrl: String,
+    smartLayoutEnabled: Boolean,
+    smartLayoutAvailable: Boolean,
+    smartLayoutHint: String?,
+    appTheme: AppThemeId,
+    networkTesting: Boolean,
+    networkTestResult: NetworkTestResult?,
+    slowNetworkMode: Boolean,
+    liteImagesEnabled: Boolean,
+    readerMode: ReaderMode,
+    onReaderModeChange: (ReaderMode) -> Unit,
+    deviceProfile: DeviceProfile?,
+    onSaveServer: (String) -> Unit,
+    onSearchEngine: (SearchEngine) -> Unit,
+    onSearxInstance: (String) -> Unit,
+    onSmartLayoutChange: (Boolean) -> Unit,
+    onClearRecent: () -> Unit,
+    onAppTheme: (AppThemeId) -> Unit,
+    onRunNetworkTest: () -> Unit,
+    onSlowNetworkChange: (Boolean) -> Unit,
+    onLiteImagesChange: (Boolean) -> Unit,
+    showPageLoadStats: Boolean,
+    onPageLoadStatsChange: (Boolean) -> Unit,
+    updateChecking: Boolean,
+    updateDownloading: Boolean,
+    updateStatus: String?,
+    onCheckUpdate: () -> Unit,
+    translateTargetLang: String,
+    onTranslateTarget: (String) -> Unit,
+    connectStatus: ConnectStatus?,
+    credentialsDraft: ServiceCredentialsDraft,
+    onCredentialsDraftChange: (ServiceCredentialsDraft) -> Unit,
+    credentialsLoading: Boolean,
+    credentialsSaving: Boolean,
+    credentialsMessage: String?,
+    telegramCodeSent: Boolean,
+    onSaveCredentials: () -> Unit,
+    onTelegramRequestCode: () -> Unit,
+    onTelegramSignIn: () -> Unit,
+    connectLoading: Boolean,
+    settingsTab: SettingsTab,
+    onSettingsTabChange: (SettingsTab) -> Unit,
+) {
+    var serverDraft by remember(serverUrl) { mutableStateOf(serverUrl) }
+    var searxDraft by remember(searxInstanceUrl) { mutableStateOf(searxInstanceUrl) }
+    val fieldColors = OutlinedTextFieldDefaults.colors(
+        focusedBorderColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+        unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.25f),
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .padding(bottom = 32.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
+            Text("Настройки", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Saylat · прокси + WebView",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+            )
+        }
+
+        SettingsTabBar(selected = settingsTab, onSelect = onSettingsTabChange)
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(top = 16.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            when (settingsTab) {
+                SettingsTab.GENERAL -> {
+                    SettingsTipCard(
+                        title = "Как пользоваться",
+                        body = "На Wi‑Fi открывайте сайты и настраивайте входы. На 2G — поиск, читалка и ленты сервисов: трафик в разы меньше, чем в обычном браузере.",
+                    )
+                    SettingsSectionCard(title = "Оформление", subtitle = "Тема интерфейса") {
+                        ThemePickerRow(selected = appTheme, onSelect = onAppTheme)
+                    }
+                    SettingsSectionCard(title = "Устройство", subtitle = "Профиль и экономия трафика") {
+                        deviceProfile?.let { profile ->
+                            Text(profile.label, fontWeight = FontWeight.Medium)
+                            Text(
+                                profile.hint,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                            )
+                        }
+                        SettingsSwitchRow(
+                            title = "Режим 2G / EDGE",
+                            subtitle = "Длинные таймауты и лёгкий сетевой тест",
+                            checked = slowNetworkMode,
+                            onCheckedChange = onSlowNetworkChange,
+                        )
+                        SettingsSwitchRow(
+                            title = "Картинки 1–2 КБ",
+                            subtitle = if (slowNetworkMode) {
+                                "До 4 JPEG ~8 КБ в посте (включите для картинок на 2G)"
+                            } else {
+                                "Сжатие на прокси для медленного канала"
+                            },
+                            checked = liteImagesEnabled,
+                            onCheckedChange = onLiteImagesChange,
+                        )
+                    }
+                    SettingsSectionCard(title = "Перевод", subtitle = "Язык в читалке") {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            TRANSLATE_TARGETS.forEach { (code, label) ->
+                                FilterChip(
+                                    selected = translateTargetLang == code,
+                                    onClick = { onTranslateTarget(code) },
+                                    label = { Text(label) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    ),
+                                )
+                            }
+                        }
+                    }
+                    SettingsSectionCard(title = "Приложение") {
+                        Text(
+                            "Версия ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                        Button(
+                            onClick = onCheckUpdate,
+                            enabled = !updateChecking && !updateDownloading,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                            ),
+                        ) {
+                            if (updateChecking || updateDownloading) {
+                                CircularProgressIndicator(
+                                    Modifier.padding(end = 8.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            }
+                            Text(
+                                when {
+                                    updateDownloading -> "Скачиваем…"
+                                    updateChecking -> "Проверяем…"
+                                    else -> "Проверить обновление"
+                                },
+                            )
+                        }
+                        updateStatus?.let {
+                            Text(it, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                        }
+                    }
+                }
+
+                SettingsTab.NETWORK -> {
+                    SettingsTipCard(
+                        title = "Прокси Saylat",
+                        body = "Телефон получает уже сжатые карточки. Укажите адрес вашего VPS (или эмулятора при разработке) и проверьте связь тестом ниже.",
+                    )
+                    SettingsSectionCard(title = "Адрес сервера", subtitle = "Base URL прокси") {
+                        OutlinedTextField(
+                            value = serverDraft,
+                            onValueChange = { serverDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                            label = { Text("URL") },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = fieldColors,
+                        )
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilterChip(
+                                selected = serverDraft == SaylatPrefs.DEFAULT_EMULATOR,
+                                onClick = { serverDraft = SaylatPrefs.DEFAULT_EMULATOR },
+                                label = { Text("Эмулятор") },
+                            )
+                            FilterChip(
+                                selected = serverDraft == SaylatPrefs.DEFAULT_PRODUCTION,
+                                onClick = { serverDraft = SaylatPrefs.DEFAULT_PRODUCTION },
+                                label = { Text("VPS") },
+                            )
+                        }
+                        Button(
+                            onClick = { onSaveServer(serverDraft) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                        ) {
+                            Text("Сохранить адрес")
+                        }
+                    }
+                    SettingsSectionCard(title = "Проверка связи") {
+                        NetworkTestCard(
+                            serverUrl = serverDraft.ifBlank { serverUrl },
+                            testing = networkTesting,
+                            result = networkTestResult,
+                            onRunTest = onRunNetworkTest,
+                            compact = true,
+                            slowNetworkMode = slowNetworkMode,
+                        )
+                    }
+                    SettingsSectionCard(title = "Поиск", subtitle = "Через прокси Saylat") {
+                        Text(
+                            "DuckDuckGo + Wikipedia на VPS. SearXNG — запасной, если инстанс отвечает.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedTextField(
+                            value = searxDraft,
+                            onValueChange = { searxDraft = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 10.dp),
+                            singleLine = true,
+                            label = { Text("SearXNG (опционально)") },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = fieldColors,
+                        )
+                        TextButton(onClick = { onSearxInstance(searxDraft) }) {
+                            Text("Сохранить инстанс SearXNG")
+                        }
+                        TextButton(onClick = onClearRecent) {
+                            Text("Очистить историю поиска")
+                        }
+                    }
+                }
+
+                SettingsTab.READER -> {
+                    SettingsTipCard(
+                        title = "Режим страницы",
+                        body = "«Экономия» — текст и рамки. «Полосы (Opera)» — JPEG-полосы с сервера, можно сохранить в галерею. «Как на сайте» — полный сайт.",
+                    )
+                    SettingsSectionCard(title = "Как открывать сайты") {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ReaderMode.settingsChoices.forEach { mode ->
+                                FilterChip(
+                                    selected = readerMode == mode,
+                                    onClick = { onReaderModeChange(mode) },
+                                    label = { Text(mode.label) },
+                                )
+                            }
+                        }
+                        Text(
+                            readerMode.hint,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                    SettingsSectionCard(title = "Вёрстка и статистика") {
+                        SettingsSwitchRow(
+                            title = "Умная вёрстка",
+                            subtitle = "Второй проход по блокам на устройстве",
+                            checked = smartLayoutEnabled,
+                            onCheckedChange = onSmartLayoutChange,
+                            enabled = smartLayoutAvailable,
+                        )
+                        smartLayoutHint?.let {
+                            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
+                        }
+                        SettingsSwitchRow(
+                            title = "Статистика загрузки",
+                            subtitle = "Вес ленты и сравнение с оригиналом",
+                            checked = showPageLoadStats,
+                            onCheckedChange = onPageLoadStatsChange,
+                        )
+                    }
+                }
+
+                SettingsTab.SERVICES -> {
+                    if (credentialsLoading) {
+                        CircularProgressIndicator(Modifier.padding(24.dp))
+                    } else {
+                        ServiceAccountsSettingsSection(
+                            draft = credentialsDraft,
+                            onDraftChange = onCredentialsDraftChange,
+                            connectStatus = connectStatus,
+                            saving = credentialsSaving || connectLoading,
+                            saveMessage = credentialsMessage,
+                            telegramCodeSent = telegramCodeSent,
+                            onTelegramRequestCode = onTelegramRequestCode,
+                            onTelegramSignIn = onTelegramSignIn,
+                            onSave = onSaveCredentials,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private val TRANSLATE_TARGETS = listOf(
+    "ru" to "Русский",
+    "en" to "English",
+    "uk" to "Українська",
+    "de" to "Deutsch",
+    "es" to "Español",
+    "fr" to "Français",
+    "tr" to "Türkçe",
+    "zh" to "中文",
+)

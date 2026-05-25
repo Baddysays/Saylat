@@ -1,0 +1,20 @@
+=== LOCAL ===
+pikabu feed items: 18
+bad video links: 0
+tory/kto_rano_vstayot_14002427 mode=off paras=2 imgs=0 inl=0
+  text: Кто рано встаёт...
+u/story/ded_i_vnuchka_14003602 mode=off paras=1 imgs=0 inl=0
+  text: А вот позвольте коротко поделиться радостью на фоне тонн негатива. Моя дочь сегодня в 6-30 родила уж
+tory/kto_rano_vstayot_14002427 mode=tiny paras=1 imgs=1 inl=1
+  text: Кто рано встаёт...
+
+=== VPS ===
+health 200: {"status":"ok","version":"0.1.0","search":true,"translate":true,"thin_client":true,"searx_instance":"https://searx.tiekoetter.com","app_version_code":18,"app_version_name":"0.5.7"}
+GET ory/kto_rano_vstayot_14002427&images=off -> 200
+  blocks=2 paras=2
+  p0: Кто рано встаёт...
+GET /story/ded_i_vnuchka_14003602&images=off -> 200
+  blocks=1 paras=1
+  p0: А вот позвольте коротко поделиться радостью на фоне тонн негатива. Моя дочь сегодня в 6-30 родила уж
+POST open pikabu -> 200
+  feed items: 11

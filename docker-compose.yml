@@ -1,0 +1,45 @@
+services:
+  saylat:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    image: saylat-proxy:latest
+    container_name: saylat-proxy
+    restart: unless-stopped
+    ports:
+      - "8787:8787"
+    environment:
+      SAYLAT_HOST: "0.0.0.0"
+      SAYLAT_PORT: "8787"
+      SAYLAT_REQUEST_TIMEOUT_SEC: "25"
+      SAYLAT_MAX_HTML_BYTES: "2000000"
+      SAYLAT_MAX_IMAGE_BYTES: "400000"
+      SAYLAT_IMAGE_MAX_WIDTH: "480"
+      SAYLAT_IMAGE_JPEG_QUALITY: "52"
+      SAYLAT_MAX_IMAGES: "6"
+      SAYLAT_SEARX_INSTANCE: "https://searx.tiekoetter.com"
+      SAYLAT_SEARX_FALLBACKS: "https://search.sapti.me,https://search.mdosch.de"
+      SAYLAT_SEARCH_LANGUAGE: "ru-RU"
+      SAYLAT_SEARCH_MAX_RESULTS: "24"
+      SAYLAT_APP_VERSION_CODE: "32"
+      SAYLAT_APP_VERSION_NAME: "0.5.21"
+      SAYLAT_APP_RELEASE_NOTES: "Полосы Opera: Playwright-скриншот страницы на VPS."
+      SAYLAT_PLAYWRIGHT_ENABLED: "true"
+      SAYLAT_PLAYWRIGHT_TIMEOUT_SEC: "35"
+      SAYLAT_PLAYWRIGHT_MAX_CONCURRENT: "2"
+      SAYLAT_TELEGRAM_SESSION_PATH: "/app/data/telegram"
+      SAYLAT_TELEGRAM_API_ID: "0"
+      SAYLAT_TELEGRAM_API_HASH: ""
+      SAYLAT_MAIL_IMAP_HOST: ""
+      SAYLAT_MAIL_USERNAME: ""
+      SAYLAT_MAIL_PASSWORD: ""
+      SAYLAT_VK_ACCESS_TOKEN: ""
+      SAYLAT_DZEN_SESSION_COOKIE: ""
+    volumes:
+      - ./server/data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8787/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s

@@ -1,0 +1,9 @@
+status=200 len=220254
+.story__title: 1
+.story__content: 1
+.story__content-inner: 1
+.story-block: 1
+.story__footer: 1
+.story__tags: 1
+block [story-block story-block_type_image] text=
+img src=https://cs18.pikabu.ru/s/2026/05/25/11/wwzregtx.jpg large=https://cs18.pikabu.ru/s/2026/05/25/11/wwzregtx_lg.jpg

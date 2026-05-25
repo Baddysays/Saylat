@@ -1,0 +1,55 @@
+# --- Python / Saylat server ---
+server/.venv/
+server/venv/
+server/.env
+server/.env.local
+server/**/__pycache__/
+server/.pytest_cache/
+server/.ruff_cache/
+server/*.egg-info/
+server/dist/
+server/build/
+*.py[cod]
+*$py.class
+.Python
+
+# --- Android ---
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/captures/
+android/*.iml
+android/.externalNativeBuild/
+android/.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# --- IDE / OS ---
+.vscode/
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Logs & temp ---
+*.log
+logs/
+tmp/
+temp/
+.cache/
+
+# --- Secrets (never commit) ---
+server/data/credentials.json
+.tmp-cmdline-tools.zip
+*.pem
+*.keystore
+!debug.keystore
+secrets/
