@@ -47,7 +47,9 @@ import com.baddysays.saylat.network.NetworkTestResult
 import com.baddysays.saylat.prefs.ReaderMode
 import com.baddysays.saylat.prefs.SaylatPrefs
 import com.baddysays.saylat.search.SearchEngine
+import com.baddysays.saylat.cache.PageCache
 import com.baddysays.saylat.ui.theme.AppThemeId
+import com.baddysays.saylat.util.formatBytes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,6 +100,8 @@ fun SettingsSheet(
     connectLoading: Boolean = false,
     settingsTab: SettingsTab = SettingsTab.GENERAL,
     onSettingsTabChange: (SettingsTab) -> Unit = {},
+    cacheStats: PageCache.CacheStats = PageCache.CacheStats(),
+    onClearAppCache: () -> Unit = {},
 ) {
     if (!visible) return
 
@@ -153,6 +157,8 @@ fun SettingsSheet(
             connectLoading = connectLoading,
             settingsTab = settingsTab,
             onSettingsTabChange = onSettingsTabChange,
+            cacheStats = cacheStats,
+            onClearAppCache = onClearAppCache,
         )
     }
 }
@@ -204,6 +210,8 @@ private fun SettingsSheetContent(
     connectLoading: Boolean,
     settingsTab: SettingsTab,
     onSettingsTabChange: (SettingsTab) -> Unit,
+    cacheStats: PageCache.CacheStats,
+    onClearAppCache: () -> Unit,
 ) {
     var serverDraft by remember(serverUrl) { mutableStateOf(serverUrl) }
     var searxDraft by remember(searxInstanceUrl) { mutableStateOf(searxInstanceUrl) }
@@ -219,11 +227,12 @@ private fun SettingsSheetContent(
             .padding(bottom = 32.dp),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Text("Настройки", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            SaylatBrandMark(expanded = true, iconSize = 44.dp)
             Text(
-                "Saylat · прокси + WebView",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                "Настройки",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(top = 10.dp),
             )
         }
 
@@ -239,6 +248,44 @@ private fun SettingsSheetContent(
         ) {
             when (settingsTab) {
                 SettingsTab.GENERAL -> {
+                    SettingsSectionCard(title = "Кэш приложения", subtitle = "Полосы и статьи на устройстве") {
+                        Text(
+                            "Записей: ${cacheStats.entryCount} · статей: ${cacheStats.articleCount} · " +
+                                "страниц с полосами: ${cacheStats.stripPageCount}",
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                        Text(
+                            "JPEG-полос в кэше: ${cacheStats.stripImageCount}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                        )
+                        Text(
+                            "Кэш Saylat: ${formatBytes(cacheStats.cacheBytes)}",
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            "Всего в data приложения: ${formatBytes(cacheStats.appFilesBytes)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        )
+                        Text(
+                            "Полосы сохраняются при просмотре и открываются офлайн, как страница в браузере.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                        )
+                        Button(
+                            onClick = onClearAppCache,
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.errorContainer,
+                                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                            ),
+                        ) {
+                            Text("Очистить кэш")
+                        }
+                    }
                     SettingsTipCard(
                         title = "Как пользоваться",
                         body = "На Wi‑Fi открывайте сайты и настраивайте входы. На 2G — поиск, читалка и ленты сервисов: трафик в разы меньше, чем в обычном браузере.",

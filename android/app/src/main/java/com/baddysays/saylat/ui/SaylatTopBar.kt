@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -44,7 +43,7 @@ fun SaylatTopBar(
     onSaveGallery: () -> Unit = {},
 ) {
     val (title, subtitle) = when (screen) {
-        AppScreen.HOME -> "Saylat" to "легче салата"
+        AppScreen.HOME -> null to null
         AppScreen.SEARCH_RESULTS -> (activeQuery?.let { " «$it»" } ?: "Поиск") to "результаты"
         AppScreen.READER -> "Чтение" to "сжатая лента"
         AppScreen.FEED -> "Лента" to "Пикабу · ВК · Дзен"
@@ -72,44 +71,46 @@ fun SaylatTopBar(
                     Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                 }
             } else {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primaryContainer,
+                SaylatBrandMark(
+                    modifier = Modifier.padding(start = 4.dp),
+                    expanded = false,
+                    iconSize = 32.dp,
+                    showWordmark = false,
+                )
+            }
+
+            when (screen) {
+                AppScreen.HOME -> SaylatBrandMark(
                     modifier = Modifier
-                        .padding(start = 8.dp)
-                        .size(40.dp),
-                ) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        .weight(1f)
+                        .padding(horizontal = 8.dp),
+                    expanded = true,
+                    iconSize = 52.dp,
+                )
+                else -> {
+                    val t = title ?: ""
+                    val s = subtitle ?: ""
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp),
+                    ) {
                         Text(
-                            "S",
-                            modifier = Modifier.padding(top = 8.dp),
-                            style = MaterialTheme.typography.titleMedium,
+                            t,
+                            style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            s,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
-            }
-
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(horizontal = 12.dp),
-            ) {
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {

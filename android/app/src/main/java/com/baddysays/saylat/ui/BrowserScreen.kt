@@ -114,6 +114,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         connectLoading = state.connectLoading,
         settingsTab = state.settingsTab,
         onSettingsTabChange = viewModel::setSettingsTab,
+        cacheStats = state.cacheStats,
+        onClearAppCache = viewModel::clearAppCache,
         )
     }
 
@@ -328,9 +330,11 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                 StripReaderScreen(
                                     loading = state.loading,
                                     stripPage = state.stripPage,
+                                    pageUrl = urlSeed,
+                                    fromCache = state.cachedNotice != null,
                                     saveInProgress = state.savingGallery,
                                     saveMessage = state.gallerySaveMessage,
-                                    onSaveStrips = viewModel::saveStripPageToGallery,
+                                    onSaveStrips = viewModel::saveCurrentPageToGallery,
                                 )
                             }
                             else -> ReaderBody(

@@ -1,9 +1,11 @@
 package com.baddysays.saylat.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,11 +13,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -25,6 +29,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
@@ -34,6 +39,8 @@ import com.baddysays.saylat.data.StripPage
 fun StripReaderScreen(
     loading: Boolean,
     stripPage: StripPage?,
+    pageUrl: String,
+    fromCache: Boolean,
     saveInProgress: Boolean,
     saveMessage: String?,
     onSaveStrips: () -> Unit,
@@ -48,58 +55,124 @@ fun StripReaderScreen(
         }
         stripPage != null -> {
             val context = LocalContext.current
-            LazyColumn(
-                modifier = modifier.fillMaxSize(),
-                contentPadding = PaddingValues(12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                item {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            stripPage.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        val engineLabel = when (stripPage.render_engine) {
-                            "browser" -> "Скриншот сайта (Playwright)"
-                            "browser_fallback_pillow" -> "Скриншот недоступен — упрощённые полосы"
-                            else -> "Упрощённые полосы (текст)"
-                        }
-                        Text(
-                            "$engineLabel · ${stripPage.strips.size} полос · " +
-                                "${stripPage.stats.payload_bytes / 1024} КБ",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        FilledTonalButton(
-                            onClick = onSaveStrips,
-                            enabled = !saveInProgress,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(14.dp),
+            Column(modifier = modifier.fillMaxSize()) {
+                StripBrowserChrome(
+                    url = pageUrl.ifBlank { stripPage.url },
+                    title = stripPage.title,
+                    fromCache = fromCache,
+                    stripCount = stripPage.strips.size,
+                    payloadKb = stripPage.stats.payload_bytes / 1024,
+                    engine = stripPage.render_engine,
+                )
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    item {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Icon(Icons.Default.SaveAlt, contentDescription = null)
-                            Text(
-                                if (saveInProgress) "Сохраняем…" else "Сохранить полосы в галерею",
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                        saveMessage?.let {
-                            Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            FilledTonalButton(
+                                onClick = onSaveStrips,
+                                enabled = !saveInProgress,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                            ) {
+                                Icon(Icons.Default.SaveAlt, contentDescription = null)
+                                Text(
+                                    if (saveInProgress) "Сохраняем…" else "Копия в галерею",
+                                    modifier = Modifier.padding(start = 8.dp),
+                                )
+                            }
+                            saveMessage?.let {
+                                Text(
+                                    it,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
                     }
-                }
-                itemsIndexed(stripPage.strips, key = { idx, _ -> "strip-$idx" }) { _, strip ->
-                    val model = remember(strip.src) { strip.src }
-                    AsyncImage(
-                        model = ImageRequest.Builder(context).data(model).crossfade(false).build(),
-                        contentDescription = "Полоса ${strip.index + 1}",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = ContentScale.FillWidth,
-                    )
+                    itemsIndexed(stripPage.strips, key = { idx, _ -> "strip-$idx" }) { idx, strip ->
+                        val model = remember(strip.src) { strip.src }
+                        AsyncImage(
+                            model = ImageRequest.Builder(context).data(model).crossfade(false).build(),
+                            contentDescription = "Полоса ${idx + 1}",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                            contentScale = ContentScale.FillWidth,
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun StripBrowserChrome(
+    url: String,
+    title: String,
+    fromCache: Boolean,
+    stripCount: Int,
+    payloadKb: Int,
+    engine: String,
+) {
+    val engineLabel = when (engine) {
+        "browser" -> "скриншот"
+        "browser_fallback_pillow" -> "упрощённо"
+        else -> "текст"
+    }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
+        tonalElevation = 0.dp,
+    ) {
+        Column(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    title.ifBlank { "Страница" },
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f),
+                )
+                if (fromCache) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Icon(
+                            Icons.Default.OfflinePin,
+                            contentDescription = null,
+                            modifier = Modifier.padding(0.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text("кэш", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+            Text(
+                url,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                "$stripCount полос · $payloadKb КБ · $engineLabel · прокрутка как в браузере",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            )
         }
     }
 }

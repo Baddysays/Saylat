@@ -108,6 +108,7 @@ data class BrowserUiState(
     val readerMode: ReaderMode = ReaderMode.LAYOUT,
     val cachedNotice: String? = null,
     val offlineCacheEntries: List<PageCache.CachedEntry> = emptyList(),
+    val cacheStats: PageCache.CacheStats = PageCache.CacheStats(),
     val replySource: String? = null,
     val replyItemId: String? = null,
     val replyContextId: String? = null,
@@ -241,7 +242,19 @@ class BrowserViewModel(
     fun refreshOfflineCache() {
         viewModelScope.launch {
             val entries = withContext(Dispatchers.IO) { PageCache.listRecent(appContext) }
-            _state.value = _state.value.copy(offlineCacheEntries = entries)
+            val stats = withContext(Dispatchers.IO) { PageCache.stats(appContext) }
+            _state.value = _state.value.copy(offlineCacheEntries = entries, cacheStats = stats)
+        }
+    }
+
+    fun clearAppCache() {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { PageCache.clearAll(appContext) }
+            refreshOfflineCache()
+            _state.value = _state.value.copy(
+                gallerySaveMessage = "Кэш очищен",
+                cachedNotice = null,
+            )
         }
     }
 
@@ -563,10 +576,12 @@ class BrowserViewModel(
                     GallerySaver.saveStripsMerged(appContext, page.strips.map { it.src }, name)
                 }
                 withContext(Dispatchers.IO) { PageCache.putStripPage(appContext, page) }
+                refreshOfflineCache()
                 _state.value = _state.value.copy(
+                    stripPage = page,
                     savingGallery = false,
                     gallerySaveMessage = if (uri != null) {
-                        "Сохранено в «Картинки/Saylat» (${page.strips.size} полос)"
+                        "Сохранено в «Картинки/Saylat» (${page.strips.size} полос), кэш обновлён"
                     } else {
                         "Не удалось сохранить. Проверьте разрешения хранилища."
                     },
@@ -611,6 +626,7 @@ class BrowserViewModel(
             credentialsMessage = null,
             telegramCodeSent = false,
         )
+        refreshOfflineCache()
         loadServiceCredentials()
         refreshConnectStatus()
     }
@@ -672,9 +688,14 @@ class BrowserViewModel(
             )
             val strips = withContext(Dispatchers.IO) { PageCache.loadStripPage(appContext, url) }
             if (strips != null) {
+                _urlInput.value = strips.url
                 _state.value = _state.value.copy(
+                    screen = AppScreen.READER,
                     loading = false,
                     stripPage = strips,
+                    article = null,
+                    plan = null,
+                    webViewUrl = null,
                     cachedNotice = "Полосы из офлайн-кэша",
                     pageLoadStats = ArticleStats(
                         original_bytes = strips.stats.original_bytes,

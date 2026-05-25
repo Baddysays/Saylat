@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/saylat-logo.png" width="160" alt="Saylat logo" />
+</p>
+
 # Saylat
 
 **Легче салата** — мобильный браузер для медленных сетей (2G/EDGE).  

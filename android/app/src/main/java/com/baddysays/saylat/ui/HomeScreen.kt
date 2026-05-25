@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
@@ -41,6 +40,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.baddysays.saylat.cache.PageCache
+import com.baddysays.saylat.util.formatBytes
 import com.baddysays.saylat.network.NetworkFormat
 import com.baddysays.saylat.network.NetworkTestResult
 import com.baddysays.saylat.search.SearchEngine
@@ -230,25 +230,7 @@ private fun HomeHero(networkResult: NetworkTestResult?) {
             .padding(horizontal = 20.dp, vertical = 20.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Surface(
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(48.dp),
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("S", color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
-                    }
-                }
-                Column {
-                    Text("Saylat", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Bold)
-                    Text(
-                        "легче салата",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            }
+            SaylatBrandMark(expanded = true, iconSize = 72.dp)
             Text(
                 "Сервер сжимает страницу; на телефоне — карточки, визуальная копия или WebView через прокси.",
                 style = MaterialTheme.typography.bodyLarge,
@@ -306,7 +288,7 @@ private fun OfflineCacheRow(
                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 )
                 Text(
-                    "$whenText · $kinds",
+                    "$whenText · $kinds · ${formatBytes(entry.bytesOnDisk)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                 )

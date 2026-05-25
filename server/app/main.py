@@ -5,6 +5,7 @@ import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
+from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .extract import extract_article
@@ -71,6 +72,7 @@ app.add_middleware(
 )
 
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
 
 @app.get("/", include_in_schema=False)
