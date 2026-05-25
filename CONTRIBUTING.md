@@ -17,6 +17,8 @@ git push -u origin feature/краткое-описание
 
 Открывайте Pull Request в `main`. Один PR — одна логическая задача.
 
+Вопросы по использованию — в [Discussions](https://github.com/Baddysays/Saylat/discussions), ошибки — в Issues.
+
 ## Стиль коммитов
 
 ```

@@ -1,0 +1,10 @@
+title: Идея
+labels:
+  - idea
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: Описание
+    validations:
+      required: true

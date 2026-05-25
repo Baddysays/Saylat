@@ -1,0 +1,13 @@
+title: Общий вопрос
+labels:
+  - question
+body:
+  - type: markdown
+    value: |
+      Опишите версию Saylat, тип сети (2G/Wi‑Fi) и адрес прокси без паролей и токенов.
+  - type: textarea
+    id: body
+    attributes:
+      label: Вопрос
+    validations:
+      required: true

@@ -95,10 +95,10 @@ async def build_unified_feed(*, per_source: int = 12) -> SaylatFeed:
             FeedItem(
                 id="unified-empty",
                 kind="notice",
-                title="Настройте мессенджеры",
+                title="Нет подключённых лент",
                 body=(
-                    "В приложении: Telegram API, токен VK или IMAP. "
-                    "Сохраните на VPS при Wi‑Fi."
+                    "Telegram, VK или почта — в настройках приложения и в .env на VPS. "
+                    "См. docs/MESSENGERS.md."
                 ),
             )
         )

@@ -1,92 +1,70 @@
 <p align="center">
-  <img src="docs/assets/saylat-logo.png" width="160" alt="Saylat logo" />
+  <img src="docs/assets/saylat-mark.svg" width="120" alt="Saylat" />
 </p>
 
-# 🥗 Saylat — браузер и хаб для слабых сетей (2G/EDGE)
+# Saylat
 
-[![GitHub release](https://img.shields.io/github/v/release/Baddysays/Saylat)](https://github.com/Baddysays/Saylat/releases)
+**Легче салата** — браузер и хаб для медленных сетей (2G/EDGE). Страницы сжимаются на **вашем прокси**, на телефоне — нативный интерфейс без тяжёлого WebView.
+
+[![Release](https://img.shields.io/github/v/release/Baddysays/Saylat)](https://github.com/Baddysays/Saylat/releases)
 [![CI](https://github.com/Baddysays/Saylat/actions/workflows/ci.yml/badge.svg)](https://github.com/Baddysays/Saylat/actions/workflows/ci.yml)
-[![Release APK](https://github.com/Baddysays/Saylat/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Baddysays/Saylat/actions/workflows/release-apk.yml)
+[![APK build](https://github.com/Baddysays/Saylat/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Baddysays/Saylat/actions/workflows/release-apk.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Легче салата** — страницы сжимаются на **вашем прокси**, на телефоне нативный UI без тяжёлого WebView.
+`com.baddysays.saylat` · [baddysays](https://github.com/Baddysays)
 
-*by **baddysays*** · `com.baddysays.saylat`
+## Возможности
 
-## 🚀 Возможности
+- Три уровня сжатия (Light / Medium / Full) под скорость сети
+- Статьи и полосы страниц через прокси (JSON, Playwright)
+- Telegram, VK и IMAP — ленты и ответы через ваш VPS
+- Офлайн-кэш просмотренного на устройстве
+- Обновления APK с [GitHub Releases](https://github.com/Baddysays/Saylat/releases) (`saylat.apk`)
 
-- 📡 **Три уровня сжатия** — Light / Medium / Full под скорость сети
-- 🌐 **Тонкий браузер** — JSON-статьи, полосы Playwright, умная вёрстка
-- 💬 **Telegram, VK, IMAP** — ленты и ответы через ваш VPS (не из APK)
-- 📦 **Офлайн-кэш** — недавние страницы и полосы на устройстве
-- 🔄 **Обновления APK** — только с [GitHub Releases](https://github.com/Baddysays/Saylat/releases) (`saylat.apk`)
+## Личный сервер
 
-## Личный сервер (не публичный сервис)
+Saylat не является публичным хостингом: каждый поднимает свой прокси на VPS.
 
 | Шаг | Действие |
 |-----|----------|
-| VPS | `curl -fsSL .../install-saylat-server.sh \| bash` на **вашем** сервере |
-| Телефон | Скачать APK → при первом запуске ввести `http://ВАШ_IP:8787` |
+| Сервер | `curl -fsSL https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh \| bash` |
+| Телефон | [Скачать APK](https://github.com/Baddysays/Saylat/releases/latest) → указать `http://ВАШ_IP:8787` при первом запуске |
 
-Подробно: **[docs/DLYA-POLZOVATELYA.md](docs/DLYA-POLZOVATELYA.md)** · файрвол: **[docs/LICHNYI-SERVER.md](docs/LICHNYI-SERVER.md)** · wiki: **[docs/WIKI-SERVER.md](docs/WIKI-SERVER.md)**.
+Документация: [Для пользователя](docs/DLYA-POLZOVATELYA.md) · [Сервер](docs/SERVER-SETUP.md) · [Файрвол](docs/LICHNYI-SERVER.md) · [Мессенджеры](docs/MESSENGERS.md)
 
-IP **не** хранится в открытом репозитории — только у вас в `local.properties` / `.env`.
+Публичный IP в репозиторий не коммитится — только в локальных `local.properties` / `.env`.
 
-## 📸 Скриншоты
-
-Добавьте свои скриншоты в `docs/assets/` (главный экран, сравнение с Chrome на 2G, лента мессенджеров).
-
-## 🔧 Быстрый старт
-
-### Для пользователей
-
-**[Скачать APK (последний релиз)](https://github.com/Baddysays/Saylat/releases/latest)** — файл `saylat.apk`.
-
-### Для разработчиков
+## Быстрый старт (разработка)
 
 ```bash
 git clone https://github.com/Baddysays/Saylat.git
 cd Saylat/server
-python -m venv .venv && source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python run.py
 ```
 
-Docker:
+Docker: `docker compose up -d --build` из корня репозитория.
 
-```bash
-docker compose up -d --build
-```
-
-Android: откройте `android/` в Android Studio, `local.properties` — см. `android/local.properties.example`.
+Android: каталог `android/`, пример настроек — `android/local.properties.example`.
 
 ## Документация
 
-| Документ | Содержание |
-|----------|------------|
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Что готово и что в планах |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Системные требования |
-| [docs/COMPRESSION_LEVELS.md](docs/COMPRESSION_LEVELS.md) | Light / Medium / Full |
-| [docs/WIKI-TELEGRAM-VK.md](docs/WIKI-TELEGRAM-VK.md) | Подключение мессенджеров |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Pull request и стиль коммитов |
-| [shared/article.schema.json](shared/article.schema.json) | JSON-контракт API |
+| Файл | Тема |
+|------|------|
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Планы и статус |
+| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Требования |
+| [docs/COMPRESSION_LEVELS.md](docs/COMPRESSION_LEVELS.md) | Уровни сжатия |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Участие в разработке |
+| [shared/article.schema.json](shared/article.schema.json) | Контракт API |
 
-## Архитектура
+## Обратная связь
 
-```
-[Android Saylat]  --JSON-->  [Ваш Saylat Proxy]  --HTML-->  [Сайты]
-        |                              |
-        +-- SmartLayout + кэш          +-- extract / feed / act
-```
+- [Discussions](https://github.com/Baddysays/Saylat/discussions) — вопросы и идеи
+- [Issues](https://github.com/Baddysays/Saylat/issues) — ошибки
+- Pull request — по [CONTRIBUTING.md](CONTRIBUTING.md)
 
-## 🤝 Как помочь
-
-- ⭐ Звезда репозиторию
-- 🐛 [Issues](https://github.com/Baddysays/Saylat/issues) — баги и идеи
-- 🌍 Переводы и PR — см. [CONTRIBUTING.md](CONTRIBUTING.md)
-- 💬 Включите **Discussions** в настройках GitHub для вопросов пользователей
-
-## 📜 Лицензия
+## Лицензия
 
 [MIT](LICENSE) · Copyright (c) 2026 baddysays

@@ -2,7 +2,7 @@
 
 ```
 saylat/                          # корень монорепозитория
-├── .github/                     # шаблоны GitHub (PR, issues)
+├── .github/                     # CI, issues, discussions, PR
 ├── android/                     # клиент Android (Kotlin + Compose)
 │   ├── app/
 │   │   └── src/main/
@@ -28,9 +28,11 @@ saylat/                          # корень монорепозитория
 │   ├── article.schema.json      # контракт клиент ↔ сервер
 │   └── layout-plan.schema.json  # план вёрстки на телефоне
 ├── docs/
-│   ├── REQUIREMENTS.md          # системные требования
-│   ├── SMART_LAYOUT.md          # прототип умной вёрстки
-│   └── STRUCTURE.md             # этот файл
+│   ├── REQUIREMENTS.md
+│   ├── SERVER-SETUP.md
+│   ├── MESSENGERS.md
+│   ├── ROADMAP.md
+│   └── STRUCTURE.md
 ├── .editorconfig
 ├── .gitattributes
 ├── .gitignore

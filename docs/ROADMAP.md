@@ -1,46 +1,43 @@
-# Дорожная карта Saylat
+# Дорожная карта
 
-Статусы: ✅ готово · 🟡 частично · ⬜ запланировано
+Обозначения: готово · частично · в планах
 
-## Клиент (Android)
-
-| Задача | Статус |
-|--------|--------|
-| Рендер JSON (LazyColumn, карточки, light/medium/full) | ✅ |
-| Переход по ссылкам без WebView (прокси `/api/open`, extract) | ✅ |
-| Telegram / VK / почта через сервер | 🟡 (VK ответы — позже) |
-| Офлайн-кэш (`PageCache`, DataStore) | ✅ (не Room) |
-| Ошибки и таймауты на 2G | ✅ |
-| FCM push на 2G | ⬜ |
-| Режим SOS (&lt;10 кбит/с) | ⬜ |
-| Bluetooth / Wi‑Fi Direct P2P | ⬜ |
-
-## Сервер (FastAPI)
+## Android
 
 | Задача | Статус |
 |--------|--------|
-| Extract + visual + strips + сжатие light/medium/full | ✅ |
-| In-memory кэш ответов | ✅ |
-| SSRF-защита URL | ✅ |
-| API-ключ + rate limit | ✅ |
-| Fallback plain-текст при сбое upstream | ✅ |
-| `/api/feed` — объединённая лента | ✅ |
-| `/api/act` — отправка (TG, почта) | 🟡 |
-| Redis-кэш | ⬜ (переменная зарезервирована) |
-| Docker / docker-compose | ✅ |
+| Рендер статей (LazyColumn, light/medium/full) | готово |
+| Навигация по ссылкам через прокси | готово |
+| Telegram / VK / почта | частично (ответы VK — позже) |
+| Офлайн-кэш (`PageCache`) | готово |
+| Ошибки и таймауты на 2G | готово |
+| Push (FCM) | в планах |
+| Режим экстремально слабой сети | в планах |
 
-## GitHub и продукт
+## Сервер
 
 | Задача | Статус |
 |--------|--------|
-| README с бейджами и быстрым стартом | ✅ |
-| Автосборка APK (`release-apk.yml`, `saylat.apk`) | ✅ |
-| OTA только с GitHub | ✅ |
-| CONTRIBUTING | ✅ |
-| Wiki-статьи в `docs/` | ✅ |
-| Скриншоты в README | ⬜ (добавьте в `docs/assets/`) |
-| GitHub Discussions / Projects | ⬜ (включите в настройках репо) |
+| Extract, visual, strips, сжатие | готово |
+| Кэш ответов в памяти | готово |
+| Защита URL (SSRF) | готово |
+| API-ключ и rate limit | готово |
+| Fallback plain-текст | готово |
+| `/api/feed` | готово |
+| `/api/act` (Telegram, почта) | частично |
+| Redis | в планах |
+| Docker | готово |
 
-## Идеи «вау»
+## Репозиторий
 
-- SOS-режим, P2P, голос↔текст, видео→GIF — в бэклоге, см. Issues.
+| Задача | Статус |
+|--------|--------|
+| README, CI, релиз APK | готово |
+| OTA с GitHub | готово |
+| Документация в `docs/` | готово |
+| Discussions (шаблоны в `.github/`) | готово |
+| Скриншоты в README | в планах |
+
+## Дальнейшие планы
+
+SOS-режим, P2P между устройствами, голос↔текст, сжатие видео — см. [Issues](https://github.com/Baddysays/Saylat/issues).
