@@ -23,12 +23,17 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install Android SDK 35
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
       - name: Configure SDK path
-        run: echo "sdk.dir=${ANDROID_HOME}" > android/local.properties
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > android/local.properties
 
       - name: Build release APK
         working-directory: android
-        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon --stacktrace
 
       - name: Prepare saylat.apk
         run: cp android/app/build/outputs/apk/release/app-release.apk saylat.apk
