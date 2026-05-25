@@ -20,9 +20,15 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Configure SDK path
+        run: echo "sdk.dir=${ANDROID_HOME}" > android/local.properties
+
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease --no-daemon
+        run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
 
       - name: Prepare saylat.apk
         run: cp android/app/build/outputs/apk/release/app-release.apk saylat.apk
