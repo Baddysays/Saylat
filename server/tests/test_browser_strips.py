@@ -5,6 +5,7 @@ import pytest
 from app.browser_strips import BrowserStripsError, build_browser_strip_page, playwright_available
 
 
+@pytest.mark.integration
 @pytest.mark.skipif(not playwright_available(), reason="Playwright/Chromium not installed")
 def test_browser_strips_example_com():
     page = asyncio.run(build_browser_strip_page("https://example.com"))
@@ -14,6 +15,7 @@ def test_browser_strips_example_com():
     assert page.strips[0].height >= 40
 
 
+@pytest.mark.integration
 def test_build_strip_page_browser_engine_integration():
     from app.screenshot_strips import build_strip_page
 

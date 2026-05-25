@@ -19,4 +19,4 @@ jobs:
         run: pip install -r requirements.txt
       - name: Run tests
         working-directory: server
-        run: python -m pytest tests/ -q
+        run: python -m pytest tests/ -q -m "not integration"
