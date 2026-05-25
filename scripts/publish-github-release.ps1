@@ -39,12 +39,12 @@ try {
     }
 
     $apkUrl = "https://github.com/Baddysays/Saylat/releases/download/$Tag/saylat.apk"
-    $notes = "Saylat $versionName — см. CHANGELOG в репозитории."
+    $notes = "Saylat $versionName. App updates via GitHub; proxy on your own server."
     $meta = @{
         version_code = $versionCode
         version_name = $versionName
         apk_url = $apkUrl
-        release_notes = "Обновление с GitHub. Прокси Saylat — на вашем сервере."
+        release_notes = "Updates from GitHub. Saylat proxy stays on your VPS."
         mandatory = $false
     } | ConvertTo-Json -Compress
     New-Item -ItemType Directory -Force -Path (Split-Path $UpdateJson) | Out-Null
