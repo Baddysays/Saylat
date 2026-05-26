@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Saylat — браузер под слабую сеть</title>
+  <meta name="description" content="Saylat делает тяжелые сайты читаемыми на медленном интернете: сжатие на вашем сервере, легкий клиент на Android." />
+  <style>
+    :root{
+      --bg:#f8fafc; --card:#ffffff; --line:#dce7f8; --text:#0f172a; --muted:#475569;
+      --brand:#0f766e; --brand-soft:#ccfbf1; --accent:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,system-ui,sans-serif;line-height:1.55}
+    .wrap{width:min(1080px,92%);margin:0 auto}
+    header{padding:20px 0;border-bottom:1px solid var(--line)}
+    .top{display:flex;justify-content:space-between;align-items:center;gap:10px}
+    .brand{font-size:22px;font-weight:800;color:var(--brand)}
+    .nav a{margin-left:14px;color:#0f172a;text-decoration:none;font-weight:600}
+    .hero{padding:48px 0 30px;display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:center}
+    h1{font-size:clamp(30px,5vw,48px);line-height:1.1;margin:0 0 14px}
+    .lead{font-size:19px;color:var(--muted)}
+    .kpis{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+    .pill{padding:7px 10px;border-radius:999px;background:#e2e8f0;color:#0f172a;font-size:14px}
+    .cta{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}
+    .btn{padding:11px 16px;border-radius:10px;text-decoration:none;font-weight:700;border:1px solid transparent}
+    .btn-main{background:var(--brand);color:#f0fdfa}
+    .btn-alt{border-color:#cbd5e1;color:#0f172a;background:#fff}
+    .shot{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px}
+    .shot img{width:100%;border-radius:10px;display:block}
+    section{padding:24px 0}
+    h2{margin:0 0 12px;font-size:30px}
+    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .step{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+    .step b{display:block;margin-bottom:6px}
+    .compare{background:#fff;border:1px solid var(--line);border-radius:14px;padding:10px}
+    .compare img{width:100%;border-radius:10px}
+    .one-liner{background:var(--brand-soft);border:1px solid #99f6e4;border-radius:12px;padding:12px}
+    code{display:block;margin-top:8px;background:#0f172a;color:#e2e8f0;padding:10px;border-radius:8px;overflow:auto}
+    footer{padding:24px 0 40px;color:var(--muted);font-size:14px}
+    @media(max-width:920px){.hero{grid-template-columns:1fr}.steps{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap top">
+      <div class="brand">🥗 Saylat</div>
+      <nav class="nav">
+        <a href="https://github.com/Baddysays/Saylat">GitHub</a>
+        <a href="https://github.com/Baddysays/Saylat/releases/latest">APK</a>
+        <a href="https://github.com/Baddysays/Saylat/discussions">Discussions</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <h1>Тяжелый сайт превращается в легкий поток контента</h1>
+        <p class="lead">Saylat обрабатывает страницу на вашем VPS и отдает в Android-клиент оптимизированный результат для 2G / EDGE.</p>
+        <div class="kpis">
+          <span class="pill">Light / Medium / Full</span>
+          <span class="pill">STRIPS для сложных сайтов</span>
+          <span class="pill">Офлайн-кэш</span>
+        </div>
+        <div class="cta">
+          <a class="btn btn-main" href="https://github.com/Baddysays/Saylat/releases/latest">Скачать APK</a>
+          <a class="btn btn-alt" href="https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh">Скрипт установки</a>
+        </div>
+      </div>
+      <div class="shot">
+        <img src="../../docs/assets/screenshots/settings-reading-modes.png" alt="Режимы чтения в Saylat">
+      </div>
+    </section>
+
+    <section>
+      <h2>Как начать</h2>
+      <div class="steps">
+        <div class="step"><b>1. Поднять сервер</b>Одной командой на VPS.</div>
+        <div class="step"><b>2. Поставить APK</b>С GitHub Releases.</div>
+        <div class="step"><b>3. Ввести URL</b><code style="margin:0;padding:4px 6px">http://ВАШ_IP:8787</code></div>
+        <div class="step"><b>4. Выбрать режим</b>Light для минимального трафика.</div>
+      </div>
+    </section>
+
+    <section>
+      <h2>До и после</h2>
+      <div class="compare">
+        <img src="../../docs/assets/screenshots/browser-vs-saylat.svg" alt="До и после: обычный браузер и Saylat">
+      </div>
+    </section>
+
+    <section>
+      <h2>Одна команда</h2>
+      <div class="one-liner">
+        <p>Быстрый старт сервера:</p>
+        <code>curl -fsSL https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh | bash</code>
+      </div>
+    </section>
+  </main>
+
+  <footer class="wrap">
+    MIT License · <a href="https://github.com/Baddysays/Saylat/blob/main/LICENSE">License</a> ·
+    <a href="https://github.com/Baddysays/Saylat/blob/main/CONTRIBUTING.md">Contributing</a>
+  </footer>
+</body>
+</html>

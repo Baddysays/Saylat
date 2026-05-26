@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="760" viewBox="0 0 1400 760" role="img" aria-labelledby="title desc">
+  <title id="title">!@02=5=85 >1KG=>3> 1@0C75@0 8 Saylat</title>
+  <desc id="desc">!;520 BO65;K9 A09B 2 >1KG=>< 1@0C75@5, A?@020 ;53:89 @5=45@ Saylat.</desc>
+  <rect width="1400" height="760" fill="#0f172a"/>
+  <text x="700" y="62" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="42" text-anchor="middle">48= A09B, @07=K9 >?KB 2 A;01>9 A5B8</text>
+
+  <rect x="58" y="108" width="614" height="594" rx="20" fill="#111827" stroke="#374151" stroke-width="2"/>
+  <rect x="728" y="108" width="614" height="594" rx="20" fill="#0b1f1d" stroke="#115e59" stroke-width="2"/>
+
+  <text x="365" y="154" fill="#f8fafc" font-family="Arial, sans-serif" font-size="30" text-anchor="middle">1KG=K9 1@0C75@</text>
+  <text x="1035" y="154" fill="#ccfbf1" font-family="Arial, sans-serif" font-size="30" text-anchor="middle">Saylat</text>
+
+  <rect x="96" y="188" width="538" height="58" rx="12" fill="#1f2937"/>
+  <text x="116" y="225" fill="#d1d5db" font-family="Arial, sans-serif" font-size="22">https://news.example.com/heavy-page</text>
+
+  <rect x="766" y="188" width="538" height="58" rx="12" fill="#134e4a"/>
+  <text x="786" y="225" fill="#ccfbf1" font-family="Arial, sans-serif" font-size="22">https://news.example.com/heavy-page</text>
+
+  <rect x="96" y="270" width="538" height="84" rx="12" fill="#ef4444" opacity="0.18"/>
+  <text x="116" y="320" fill="#fecaca" font-family="Arial, sans-serif" font-size="24"> 5:;0<0, B@5:5@K, A:@8?BK...</text>
+
+  <rect x="96" y="372" width="538" height="74" rx="12" fill="#334155"/>
+  <rect x="96" y="460" width="538" height="74" rx="12" fill="#334155"/>
+  <rect x="96" y="548" width="538" height="74" rx="12" fill="#334155"/>
+  <text x="116" y="417" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="22">;8==0O 703@C7:0 8 45@30=K9 UI</text>
+  <text x="116" y="506" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="22">!;CG09=K5 1;>:8 8 287C0;L=K9 HC<</text>
+  <text x="116" y="594" fill="#e2e8f0" font-family="Arial, sans-serif" font-size="22">"O65;> G8B0BL =0 2G / EDGE</text>
+
+  <rect x="766" y="270" width="538" height="84" rx="12" fill="#0f766e" opacity="0.24"/>
+  <text x="786" y="320" fill="#a7f3d0" font-family="Arial, sans-serif" font-size="24">">;L:> =C6=K9 :>=B5=B</text>
+
+  <rect x="766" y="372" width="538" height="74" rx="12" fill="#134e4a"/>
+  <rect x="766" y="460" width="538" height="74" rx="12" fill="#134e4a"/>
+  <rect x="766" y="548" width="538" height="74" rx="12" fill="#134e4a"/>
+  <text x="786" y="417" fill="#ccfbf1" font-family="Arial, sans-serif" font-size="22">KAB@K9 B5:AB>2K9 @5=45@ + AAK;:8</text>
+  <text x="786" y="506" fill="#ccfbf1" font-family="Arial, sans-serif" font-size="22"> 568<K Light / Medium / Full</text>
+  <text x="786" y="594" fill="#ccfbf1" font-family="Arial, sans-serif" font-size="22">-:>=><8O B@0D8:0 8 10B0@58</text>
+
+  <rect x="96" y="646" width="212" height="40" rx="20" fill="#7f1d1d"/>
+  <text x="202" y="673" fill="#fecaca" font-family="Arial, sans-serif" font-size="20" text-anchor="middle">~2.8 MB payload</text>
+  <rect x="766" y="646" width="212" height="40" rx="20" fill="#064e3b"/>
+  <text x="872" y="673" fill="#a7f3d0" font-family="Arial, sans-serif" font-size="20" text-anchor="middle">~180 KB payload</text>
+</svg>
