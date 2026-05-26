@@ -1,0 +1,68 @@
+# One-time (and manual) welcome post for Discussions.
+name: Post welcome discussion
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/post-welcome-discussion.yml
+      - docs/github/DISCUSSIONS-WELCOME.md
+
+permissions:
+  discussions: write
+  contents: read
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create welcome discussion if missing
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TITLE="Добро пожаловать в Saylat — с чего начать"
+
+          existing=$(gh api graphql -f query='
+            query($owner: String!, $name: String!) {
+              repository(owner: $owner, name: $name) {
+                discussions(first: 30, orderBy: {field: CREATED_AT, direction: DESC}) {
+                  nodes { title }
+                }
+              }
+            }' -f owner='Baddysays' -f name='Saylat' \
+            --jq '.data.repository.discussions.nodes[].title' || true)
+
+          if echo "$existing" | grep -Fxq "$TITLE"; then
+            echo "Welcome discussion already exists — skip."
+            exit 0
+          fi
+
+          # Strip HTML comments from welcome file
+          BODY=$(sed '1,2d' docs/github/DISCUSSIONS-WELCOME.md | sed '/^<!--/d' | sed '/^-->$/d')
+
+          pick_category() {
+            local slug="$1"
+            gh api repos/Baddysays/Saylat/discussions/categories \
+              --jq ".[] | select(.slug==\"$slug\") | .id" 2>/dev/null | head -n1
+          }
+
+          CAT_ID=$(pick_category announcements)
+          if [ -z "$CAT_ID" ]; then
+            CAT_ID=$(pick_category general)
+          fi
+          if [ -z "$CAT_ID" ]; then
+            echo "No discussion category found"
+            exit 1
+          fi
+
+          discussion=$(gh api repos/Baddysays/Saylat/discussions \
+            -f title="$TITLE" \
+            -f body="$BODY" \
+            -f category_id="$CAT_ID")
+
+          echo "$discussion" | jq -r '.html_url'
+          echo "Created welcome discussion."
