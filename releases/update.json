@@ -1,7 +1,7 @@
 {
-  "version_code": 44,
-  "version_name": "0.5.34",
-  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.34/saylat.apk",
-  "release_notes": "0.5.34: исправлены касания (настройки и подсказки поверх экрана); шапка — знак и Saylat, убрано большое лого с главной.",
+  "version_code": 45,
+  "version_name": "0.5.35",
+  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.35/saylat.apk",
+  "release_notes": "0.5.35: приветствие можно закрыть без адреса сервера — UI снова отвечает на касания.",
   "mandatory": false
 }

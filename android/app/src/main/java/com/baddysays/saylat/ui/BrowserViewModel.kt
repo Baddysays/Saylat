@@ -283,11 +283,20 @@ class BrowserViewModel(
     fun dismissWelcome() {
         viewModelScope.launch {
             val draft = _state.value.welcomeServerDraft.trim()
-            if (_state.value.needsServerUrlSetup && draft.startsWith("http")) {
+
+            val needsUrl = _state.value.needsServerUrlSetup
+            val hasValidUrl = draft.startsWith("http")
+
+            // If user didn't provide a valid server URL yet, don't mark onboarding as completed.
+            // This avoids trapping them into the same blocked state on next launch.
+            if (!needsUrl) {
+                prefs.setOnboardingDone()
+            } else if (hasValidUrl) {
                 prefs.setBaseUrl(draft)
                 prefs.setCustomServerEnabled(true)
+                prefs.setOnboardingDone()
             }
-            prefs.setOnboardingDone()
+
             _state.value = _state.value.copy(showWelcome = false)
             refreshServerStatus()
         }

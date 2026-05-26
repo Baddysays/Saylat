@@ -32,7 +32,9 @@ fun WelcomeSheet(
     val canStart = !needsServerUrl || serverUrlDraft.trim().startsWith("http")
 
     ModalBottomSheet(
-        onDismissRequest = { if (canStart) onStart() },
+        // Even if user can't start yet (server URL not valid), allow dismissing the modal
+        // so the rest of the UI remains interactive.
+        onDismissRequest = { onStart() },
         sheetState = sheetState,
     ) {
         Column(
