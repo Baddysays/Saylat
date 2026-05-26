@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Saylat — интернет легче, чем салат</title>
+  <meta name="description" content="Saylat ускоряет чтение сайтов на медленном интернете: сервер сжимает страницы, приложение показывает удобный результат." />
+  <link rel="canonical" href="https://saylat.baddysays.ru/" />
+  <link rel="icon" href="assets/favicon.png" type="image/png" sizes="512x512" />
+  <link rel="apple-touch-icon" href="assets/favicon.png" />
+  <style>
+    :root{
+      --bg:#070a15;
+      --panel:#0d1224cc;
+      --line:#2a3359;
+      --text:#f8fbff;
+      --muted:#9cb0da;
+      --brand:#5eead4;
+      --brand2:#60a5fa;
+      --good:#34d399;
+      --bad:#fb7185;
+      --surface:#0f1732;
+      --surface-border:#32427a;
+      --surface-soft:#0b1020;
+      --list-text:#d7e3ff;
+      --box-bad-bg:#2c1420;
+      --box-bad-border:#5f2740;
+      --box-good-bg:#0f2626;
+      --box-good-border:#1d5a59;
+      --pill-bg:#0d1634aa;
+      --pill-border:#394677;
+      --pill-text:#d6e3ff;
+      --ghost-border:#3d4b81;
+      --ghost-bg:#111a36aa;
+      --ghost-text:#d9e6ff;
+      --cmd-bg:#060c1d;
+      --cmd-border:#314074;
+      --cmd-text:#d5e6ff;
+      --link:#8dd3ff;
+    }
+    body[data-theme="light"]{
+      --bg:#f7fafc;
+      --panel:#ffffffee;
+      --line:#d8e2f2;
+      --text:#0f172a;
+      --muted:#475569;
+      --brand:#0f766e;
+      --brand2:#2563eb;
+      --good:#0f766e;
+      --bad:#dc2626;
+      --surface:#ffffff;
+      --surface-border:#dbe4f2;
+      --surface-soft:#f1f5f9;
+      --list-text:#334155;
+      --box-bad-bg:#fff1f2;
+      --box-bad-border:#fecdd3;
+      --box-good-bg:#ecfdf5;
+      --box-good-border:#a7f3d0;
+      --pill-bg:#ffffff;
+      --pill-border:#cbd5e1;
+      --pill-text:#334155;
+      --ghost-border:#cbd5e1;
+      --ghost-bg:#ffffff;
+      --ghost-text:#334155;
+      --cmd-bg:#f1f5f9;
+      --cmd-border:#cbd5e1;
+      --cmd-text:#0f172a;
+      --link:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      color:var(--text);
+      font-family:Inter,Segoe UI,system-ui,sans-serif;
+      background:
+        radial-gradient(900px 500px at 10% -10%, #233570 0%, transparent 60%),
+        radial-gradient(900px 500px at 100% 0%, #0b6d73 0%, transparent 50%),
+        var(--bg);
+      transition: background .25s ease, color .25s ease;
+    }
+    body[data-theme="light"]{
+      background:
+        radial-gradient(900px 500px at 0% -10%, #dbeafe 0%, transparent 55%),
+        radial-gradient(900px 500px at 100% 0%, #ccfbf1 0%, transparent 50%),
+        var(--bg);
+    }
+    .wrap{width:min(1120px,92%);margin:0 auto}
+    .hero{padding:58px 0 26px;display:grid;grid-template-columns:1.15fr .85fr;gap:18px;align-items:center}
+    .hero-head{display:flex;align-items:center;justify-content:space-between;gap:10px}
+    .logo{display:inline-flex;align-items:center;gap:10px;padding:8px 12px;border:1px solid var(--line);border-radius:999px;background:#0f1732aa}
+    .logo b{font-size:15px;letter-spacing:.3px}
+    body[data-theme="light"] .logo{background:#eef4ff}
+    .theme-toggle{
+      border:1px solid var(--line);
+      background:#111a36aa;
+      color:var(--text);
+      border-radius:999px;
+      padding:8px 12px;
+      font-weight:700;
+      cursor:pointer;
+    }
+    body[data-theme="light"] .theme-toggle{background:#eef4ff}
+    h1{font-size:clamp(36px,6vw,62px);line-height:1.04;margin:18px 0 12px}
+    .lead{font-size:20px;color:var(--muted);max-width:640px}
+    .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:22px}
+    .btn{padding:12px 18px;border-radius:12px;font-weight:800;text-decoration:none;border:1px solid transparent}
+    .btn-main{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#061124}
+    .btn-ghost{border-color:var(--ghost-border);color:var(--ghost-text);background:var(--ghost-bg)}
+    .proof{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+    .pill{padding:7px 10px;border-radius:999px;border:1px solid var(--pill-border);color:var(--pill-text);background:var(--pill-bg);font-size:13px}
+    .phone{
+      width:min(292px, 100%);
+      margin:0 auto;
+      padding:6px;
+      background:linear-gradient(180deg,#0f1732,#0b132a);
+      border:1px solid #2f3f73;
+      border-radius:24px;
+      box-shadow:0 14px 32px rgba(0,0,0,.22);
+    }
+    body[data-theme="light"] .phone{
+      background:linear-gradient(180deg,#f8fbff,#eef4ff);
+      border-color:#cfdcf2;
+      box-shadow:0 14px 32px rgba(15,23,42,.08);
+    }
+    .phone img{
+      width:100%;
+      display:block;
+      border-radius:18px;
+      border:1px solid rgba(50,66,122,.55);
+    }
+    section{padding:20px 0}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;backdrop-filter:blur(8px)}
+    .panel h2{margin:0 0 12px;font-size:29px}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .box{border-radius:14px;padding:12px;border:1px solid}
+    .box.bad{border-color:var(--box-bad-border);background:var(--box-bad-bg)}
+    .box.good{border-color:var(--box-good-border);background:var(--box-good-bg)}
+    .box h3{margin:0 0 8px;font-size:20px}
+    ul{margin:0;padding-left:18px}
+    li{margin:6px 0;color:var(--list-text)}
+    .metrics{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .metric{padding:12px;border-radius:12px;border:1px solid var(--surface-border);background:var(--surface);color:var(--text)}
+    .metric b{display:block;font-size:28px;color:var(--text)}
+    .metric span{color:var(--muted);font-size:14px}
+    .flow{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .flow .step{padding:12px;border-radius:12px;border:1px solid var(--surface-border);background:var(--surface);color:var(--muted);font-size:14px;line-height:1.5}
+    .flow .step b{display:block;font-size:15px;margin-bottom:6px;color:var(--brand)}
+    .showcase{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .shot{background:var(--surface);border:1px solid var(--surface-border);border-radius:14px;padding:8px}
+    .shot-crop{
+      border-radius:10px;
+      border:1px solid var(--surface-border);
+      background:var(--surface-soft);
+      padding:8px 6px;
+      display:flex;
+      justify-content:center;
+    }
+    .shot img{
+      width:86%;
+      display:block;
+      border-radius:8px;
+    }
+    .shot p{margin:8px 4px 2px;color:var(--muted);font-size:13px}
+    .theme-feature{
+      display:grid;
+      grid-template-columns: .95fr 1.05fr;
+      gap:14px;
+      align-items:start;
+      background:linear-gradient(145deg, rgba(94,234,212,.12), rgba(96,165,250,.09));
+      border:1px solid var(--line);
+      border-radius:16px;
+      padding:14px;
+    }
+    body[data-theme="light"] .theme-feature{
+      background:linear-gradient(145deg, rgba(15,118,110,.08), rgba(37,99,235,.07));
+    }
+    .theme-shot{
+      border-radius:14px;
+      border:1px solid var(--line);
+      box-shadow:0 14px 40px rgba(0,0,0,.18);
+      max-width:320px;
+      margin:0 auto;
+    }
+    .theme-shot .shot-crop{max-width:300px;margin:0 auto}
+    .theme-shot img{width:86%}
+    .theme-copy h3{margin:0 0 8px;font-size:22px}
+    .theme-copy > p{margin:0 0 10px;color:var(--muted);font-size:15px;line-height:1.5}
+    .theme-mini{
+      display:grid;
+      grid-template-columns:repeat(2,minmax(0,1fr));
+      gap:8px;
+    }
+    .theme-mini div{
+      padding:9px 10px;
+      border:1px solid var(--surface-border);
+      border-radius:10px;
+      background:var(--surface);
+    }
+    .theme-mini b{
+      display:block;
+      font-size:12px;
+      letter-spacing:.02em;
+      color:var(--brand);
+      margin-bottom:3px;
+    }
+    .theme-mini span{
+      display:block;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+    .faq{display:grid;gap:8px}
+    details{background:var(--surface);border:1px solid var(--surface-border);border-radius:12px;padding:10px 12px;color:var(--text)}
+    summary{cursor:pointer;font-weight:600;font-size:15px}
+    details p{
+      margin:8px 0 2px;
+      padding-left:18px;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.55;
+      font-weight:400;
+    }
+    .roadmap{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .road{padding:12px;border-radius:12px;border:1px solid var(--surface-border);background:var(--surface);color:var(--text)}
+    .road h3{margin:0 0 6px;font-size:17px;color:var(--text)}
+    .road p{margin:0;color:var(--muted);font-size:14px}
+    .cmd{font-family:ui-monospace,Consolas,monospace;background:var(--cmd-bg);border:1px solid var(--cmd-border);border-radius:10px;padding:10px;color:var(--cmd-text);overflow:auto;white-space:nowrap}
+    footer{
+      padding:28px 0 40px;
+      border-top:1px solid var(--line);
+      margin-top:8px;
+    }
+    .footer-line{
+      margin:0;
+      color:var(--muted);
+      font-size:14px;
+      line-height:1.6;
+      text-align:center;
+    }
+    .footer-line a{
+      color:var(--muted);
+      text-decoration:none;
+    }
+    .footer-line a:hover{color:var(--text);text-decoration:underline}
+    .footer-sep{margin:0 6px;opacity:.55}
+    a{color:var(--link)}
+    @media (max-width:940px){
+      .hero,.split,.metrics,.flow,.showcase,.roadmap,.theme-feature,.theme-mini{grid-template-columns:1fr}
+      .lead{font-size:18px}
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <section class="hero">
+      <div>
+        <div class="hero-head">
+          <div class="logo"><img src="assets/saylat-logo.png" alt="Saylat" width="26" height="26"/><b>SAYLAT · THIN BROWSER</b></div>
+          <button id="themeToggle" class="theme-toggle" type="button">Светлая тема</button>
+        </div>
+        <h1>Сайты читаются быстро<br/>даже в 2G</h1>
+        <p class="lead">Saylat — open-source решение для слабой мобильной связи: сервер сжимает тяжелый веб, а на телефон приходит только нужный контент.</p>
+        <div class="cta">
+          <a class="btn btn-main" href="https://github.com/Baddysays/Saylat/releases/latest/download/saylat.apk">Скачать APK</a>
+          <a class="btn btn-ghost" href="https://github.com/Baddysays/Saylat">Открыть GitHub</a>
+        </div>
+        <div class="proof">
+          <span class="pill">Light / Medium / Full</span>
+          <span class="pill">STRIPS режим</span>
+          <span class="pill">Офлайн-кэш</span>
+        </div>
+      </div>
+      <div class="phone">
+        <img src="assets/screenshots/v3-hero-home.png" alt="Saylat: главный экран и режимы скорости" />
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>До / После</h2>
+      <div class="split">
+        <div class="box bad">
+          <h3 style="color:var(--bad)">Обычный браузер</h3>
+          <ul>
+            <li>тянет полный HTML/CSS/JS</li>
+            <li>долго грузит на EDGE</li>
+            <li>сложно читать из-за шума</li>
+          </ul>
+        </div>
+        <div class="box good">
+          <h3 style="color:var(--good)">Saylat</h3>
+          <ul>
+            <li>обработка на вашем VPS</li>
+            <li>быстрый рендер текста и ссылок</li>
+            <li>переключение в STRIPS одним тапом</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Как это работает</h2>
+      <div class="flow">
+        <article class="step">
+          <b>1. Запрос страницы</b>
+          Телефон отправляет URL в ваш сервер Saylat.
+        </article>
+        <article class="step">
+          <b>2. Сжатие на VPS</b>
+          Сервер убирает лишнее, режет payload и подготавливает удобную структуру.
+        </article>
+        <article class="step">
+          <b>3. Рендер на телефоне</b>
+          Клиент показывает контент в LAYOUT или STRIPS без тяжёлого full-web UX.
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Какую проблему решает Saylat</h2>
+      <p style="margin:0 0 10px;color:var(--muted)">
+        Когда вы далеко от города, в дороге, в горах или в зоне нестабильного покрытия, обычный веб часто не открывается вообще.
+        Мы сделали Saylat так, чтобы в слабом сигнале у вас был максимальный шанс получить главное:
+        прочитать новости, открыть нужную страницу, передать сообщение и оставаться на связи.
+      </p>
+      <p style="margin:0;color:var(--muted)">
+        Иногда это просто удобство и экономия трафика. Иногда — вопрос времени и безопасности.
+        И да, у проекта много мирных сценариев: медленный интернет дома, ограниченный тариф, старые устройства, работа в полях.
+      </p>
+    </section>
+
+    <section class="metrics">
+      <article class="metric"><b>~6-15x</b><span>меньше payload в слабой сети</span></article>
+      <article class="metric"><b>1 команда</b><span>для старта сервера</span></article>
+      <article class="metric"><b>MIT</b><span>open-source и прозрачный код</span></article>
+    </section>
+
+    <section class="panel">
+      <h2>Интерфейс Saylat</h2>
+      <div class="showcase">
+        <article class="shot">
+          <div class="shot-crop">
+            <img src="assets/screenshots/v3-reader-mode.png" alt="Режим чтения статьи в Saylat"/>
+          </div>
+          <p>Reader: компактный текст + ссылки + экономия трафика.</p>
+        </article>
+        <article class="shot">
+          <div class="shot-crop">
+            <img src="assets/screenshots/v3-strips-mode.png" alt="Режим полос STRIPS в Saylat"/>
+          </div>
+          <p>STRIPS: «скриншотный» режим для сложных сайтов.</p>
+        </article>
+        <article class="shot">
+          <div class="shot-crop">
+            <img src="assets/screenshots/v3-search-mode.png" alt="Поиск в Saylat"/>
+          </div>
+          <p>Поиск: результат быстро приходит даже в слабой сети.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Тема под ваш стиль</h2>
+      <div class="theme-feature">
+        <div class="theme-shot">
+          <div class="shot-crop">
+            <img src="assets/screenshots/v3-settings-light.png" alt="Экран выбора темы в Saylat"/>
+          </div>
+        </div>
+        <div class="theme-copy">
+          <h3>Светлые, тёмные и адаптивные темы</h3>
+          <p>Комфортное чтение ночью, на солнце и в дороге — без лишнего шума в интерфейсе.</p>
+          <div class="theme-mini">
+            <div><b>Базовые</b><span>Эко, баланс, кэш и тест сети</span></div>
+            <div><b>Подключение</b><span>VPS, проверка сервера, Wi‑Fi / 2G</span></div>
+            <div><b>Чтение</b><span>Текст, STRIPS или webview</span></div>
+            <div><b>Аккаунты</b><span>Telegram, VK, почта, Дзен</span></div>
+            <div><b>Светлые</b><span>Палитры для дня и яркого света</span></div>
+            <div><b>Тёмные</b><span>Системная тема и AMOLED</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Roadmap (ближайшее)</h2>
+      <div class="roadmap">
+        <article class="road">
+          <h3>Лучше рендер ссылок</h3>
+          <p>Умный переход между LAYOUT и STRIPS без потери контекста чтения.</p>
+        </article>
+        <article class="road">
+          <h3>Сильнее офлайн</h3>
+          <p>Предзагрузка ключевых страниц и быстрый доступ из домашнего экрана.</p>
+        </article>
+        <article class="road">
+          <h3>Понятнее метрики</h3>
+          <p>Визуальные показатели экономии трафика по каждому открытому материалу.</p>
+        </article>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Быстрый старт</h2>
+      <div class="cmd">curl -fsSL https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh | bash</div>
+      <p style="margin:10px 0 0;color:var(--muted)">После установки: APK → указать <code>http://ВАШ_IP:8787</code>.</p>
+    </section>
+
+    <section class="panel">
+      <h2>FAQ</h2>
+      <div class="faq">
+        <details>
+          <summary>Это VPN или браузер?</summary>
+          <p>Thin-browser с вашим сервером — оптимизирует страницы для чтения, не перехватывая весь трафик телефона.</p>
+        </details>
+        <details>
+          <summary>Можно ли использовать публичный сервер?</summary>
+          <p>Лучше свой VPS: вы контролируете доступ, нагрузку и стабильность.</p>
+        </details>
+        <details>
+          <summary>Если сайт сложный и ломается?</summary>
+          <p>Переключитесь в STRIPS или webview — URL останется тем же.</p>
+        </details>
+        <details>
+          <summary>Это open-source или закрытый сервис?</summary>
+          <p>Open-source на GitHub: код открыт, сервер можно развернуть и доработать под себя.</p>
+        </details>
+      </div>
+    </section>
+  </main>
+  <footer class="wrap">
+    <p class="footer-line">
+      <a href="https://github.com/Baddysays/Saylat/blob/main/CONTRIBUTING.md">Contributing</a><span class="footer-sep">·</span>
+      <a href="https://github.com/Baddysays/Saylat/discussions">Discussions</a><span class="footer-sep">·</span>
+      MIT License<span class="footer-sep">·</span>
+      <a href="mailto:hello@baddysays.ru">hello@baddysays.ru</a>
+    </p>
+  </footer>
+  <script>
+    (function () {
+      const key = "saylat-site-theme";
+      const btn = document.getElementById("themeToggle");
+      const root = document.body;
+      const apply = (mode) => {
+        root.setAttribute("data-theme", mode);
+        if (btn) btn.textContent = mode === "dark" ? "Светлая тема" : "Тёмная тема";
+      };
+      const saved = localStorage.getItem(key);
+      const initial = saved === "light" || saved === "dark" ? saved : "dark";
+      apply(initial);
+      btn?.addEventListener("click", function () {
+        const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
+        localStorage.setItem(key, next);
+        apply(next);
+      });
+    })();
+  </script>
+</body>
+</html>

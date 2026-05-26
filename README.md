@@ -58,27 +58,20 @@ Saylat — это **ваш** прокси на VPS или домашнем ПК,
 ## 📸 Как это выглядит
 
 <p align="center">
-  <img src="docs/assets/screenshots/home-speed-modes.png" width="280" alt="Главная Saylat: режимы скорости" />
-  <img src="docs/assets/screenshots/settings-reading-modes.png" width="280" alt="Настройки Saylat: режимы чтения" />
-  <img src="docs/assets/screenshots/settings-themes-dark.png" width="280" alt="Настройки Saylat: темы интерфейса" />
+  <img src="docs/assets/screenshots/v3-hero-home.png" width="220" alt="Saylat: главный экран и режимы скорости" />
+  <img src="docs/assets/screenshots/v3-reader-mode.png" width="220" alt="Saylat: режим чтения" />
+  <img src="docs/assets/screenshots/v3-strips-mode.png" width="220" alt="Saylat: режим STRIPS" />
 </p>
-
-## 🔍 Обычный браузер vs Saylat
-
-Один и тот же сайт в условиях слабой сети:
-
 <p align="center">
-  <img src="docs/assets/screenshots/browser-vs-saylat.svg" width="860" alt="Сравнение: обычный браузер и Saylat в слабой сети" />
+  <img src="docs/assets/screenshots/v3-search-mode.png" width="220" alt="Saylat: поиск" />
+  <img src="docs/assets/screenshots/v3-settings-light.png" width="220" alt="Saylat: настройки и темы" />
 </p>
-
-- Слева: тяжелая страница с баннерами, скриптами и долгой загрузкой.
-- Справа: Saylat-рендер, где остаются текст, структура и нужные ссылки.
 
 ## 🌍 Сайт проекта
 
-- Планируемый домен: `https://saylat.baddysays.ru`
-- Базовый лендинг уже добавлен в `website/v1` и `website/v2` (две версии)
-- Деплой-инструкция: `website/README.md`
+- Лендинг: [https://saylat.baddysays.ru](https://saylat.baddysays.ru)
+- Исходники лендинга: `website/v3`
+- Деплой: `website/README.md`
 
 ## 🔧 Быстрый старт (для разработчиков)
 

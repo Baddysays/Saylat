@@ -4,13 +4,22 @@
 
 - `website/v1/index.html` — темный hero-лендинг
 - `website/v2/index.html` — светлый продуктовый лендинг
+- `website/v3/index.html` — dark premium (контраст, метрики, сильный hero)
+- `website/v4/index.html` — clean editorial (светлый, минималистичный)
 
 ## Быстрый деплой на поддомен
 
-1. Создайте DNS-запись:
-   - `A  saylat.baddysays.ru  -> <IP вашего VPS>`
-2. Скопируйте выбранный `index.html` на сервер (в `/var/www/saylat-site`).
-3. Настройте Nginx:
+**Рекомендуется v3** — продакшен-сборка и деплой одной командой:
+
+```powershell
+.\scripts\build-saylat-website.ps1
+.\scripts\deploy-saylat-website.ps1 -ServerHost 157.22.202.235
+```
+
+Скрипт кладёт файлы в `/www/wwwroot/saylat.baddysays.ru`, vhost Apache — `website/apache/saylat.baddysays.ru.conf`, SSL через `acme.sh` (aaPanel).
+
+1. DNS: `A  saylat.baddysays.ru  -> <IP VPS>`
+2. Ручной вариант (Nginx):
 
 ```nginx
 server {

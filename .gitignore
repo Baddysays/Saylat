@@ -54,6 +54,7 @@ server/data/credentials.json
 !debug.keystore
 secrets/
 saylat.deploy.env
+website/dist/
 server/releases/
 
 # Метаданные обновления для GitHub (APK только в Releases, не в git)
