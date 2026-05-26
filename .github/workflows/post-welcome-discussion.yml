@@ -1,4 +1,4 @@
-# Creates or updates welcome post in Discussions.
+# Creates or updates welcome post in Discussions (discussion #1).
 name: Post welcome discussion
 
 on:
@@ -24,40 +24,44 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euxo pipefail
-          TITLE='ƒобро пожаловать в Saylat Ч с чего начать'
           REPO_ID='R_kgDOSnrE7Q'
+          WELCOME_NUMBER=1
 
-          BODY="$(python3 -c "
+          python3 <<'PY'
           import re
-          t=open('docs/github/DISCUSSIONS-WELCOME.md',encoding='utf-8').read()
-          t=re.sub(r'<!--.*?-->\\s*','',t,flags=re.S)
-          print(t.strip())
-          ")"
+          from pathlib import Path
 
-          existing_json="$(gh api graphql -f query='
-            query {
-              repository(owner: "Baddysays", name: "Saylat") {
-                discussions(first: 30, orderBy: {field: CREATED_AT, direction: DESC}) {
-                  nodes { id title url }
-                }
+          raw = Path("docs/github/DISCUSSIONS-WELCOME.md").read_text(encoding="utf-8")
+          title_m = re.search(r"<!-- TITLE: (.+?) -->", raw)
+          title = title_m.group(1).strip() if title_m else "Welcome"
+          body = re.sub(r"<!--.*?-->\s*", "", raw, flags=re.S).strip()
+          Path("welcome-title.txt").write_text(title, encoding="utf-8")
+          Path("welcome-body.md").write_text(body, encoding="utf-8")
+          PY
+
+          TITLE="$(cat welcome-title.txt)"
+          BODY="$(cat welcome-body.md)"
+
+          lookup="$(gh api graphql -f query='
+            query($owner: String!, $name: String!, $number: Int!) {
+              repository(owner: $owner, name: $name) {
+                discussion(number: $number) { id url title }
               }
-            }')"
+            }' -f owner='Baddysays' -f name='Saylat' -F number="$WELCOME_NUMBER")"
 
-          existing_id="$(echo "$existing_json" | jq -r --arg t "$TITLE" '.data.repository.discussions.nodes[] | select(.title==$t) | .id' | head -n1)"
-          existing_url="$(echo "$existing_json" | jq -r --arg t "$TITLE" '.data.repository.discussions.nodes[] | select(.title==$t) | .url' | head -n1)"
+          disc_id="$(echo "$lookup" | jq -r '.data.repository.discussion.id')"
+          url="$(echo "$lookup" | jq -r '.data.repository.discussion.url')"
 
-          if [ -n "$existing_id" ] && [ "$existing_id" != "null" ]; then
+          if [ -n "$disc_id" ] && [ "$disc_id" != "null" ]; then
             gh api graphql \
               -f query='mutation($id: ID!, $title: String!, $body: String!) {
                 updateDiscussion(input: {discussionId: $id, title: $title, body: $body}) {
                   discussion { id url }
                 }
               }' \
-              -f id="$existing_id" \
+              -f id="$disc_id" \
               -f title="$TITLE" \
               -f body="$BODY"
-            disc_id="$existing_id"
-            url="$existing_url"
             echo "Updated: $url"
           else
             CAT_ID="$(gh api graphql -f query='
@@ -66,11 +70,6 @@ jobs:
                   discussionCategories(first: 20) { nodes { id slug } }
                 }
               }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug=="general") | .id' | head -n1)"
-
-            if [ -z "$CAT_ID" ]; then
-              echo "Could not resolve General category id"
-              exit 1
-            fi
 
             result="$(gh api graphql \
               -f query='mutation($repo: ID!, $cat: ID!, $title: String!, $body: String!) {
@@ -92,4 +91,4 @@ jobs:
             -f query='mutation($id: ID!) { pinDiscussion(input: {discussionId: $id}) { clientMutationId } }' \
             -f id="$disc_id" \
             && echo "Pinned." \
-            || echo "Pin skipped Ч open $url and Pin discussion manually."
+            || echo "Pin skipped ? open $url and Pin discussion manually."
