@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Used by .github/workflows/post-welcome-discussion.yml
+# Used by .github/workflows/post-welcome-discussion.yml (needs repo Actions: Read and write).
 set -eu
 
 TITLE='Добро пожаловать в Saylat — с чего начать'
