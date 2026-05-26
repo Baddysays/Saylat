@@ -12,7 +12,7 @@ from PIL import Image
 
 from .config import settings
 from .http_ua import normalize_fetch_url, ua_for_url
-from .models import StripPageResponse, StripSegment, StripStats
+from .models import ArticleLink, StripPageResponse, StripSegment, StripStats
 from .strip_adblock import inject_adblock
 
 RenderEngine = Literal["browser", "pillow", "browser_fallback_pillow"]
@@ -128,6 +128,7 @@ async def build_browser_strip_page(
     *,
     original_bytes_hint: int = 0,
     site_profile: str = "generic",
+    links: list[ArticleLink] | None = None,
 ) -> StripPageResponse:
     if not playwright_available():
         raise BrowserStripsError("Playwright не установлен или отключён (SAYLAT_PLAYWRIGHT_ENABLED)")
@@ -149,6 +150,7 @@ async def build_browser_strip_page(
             timeout_ms,
             original_bytes_hint,
             site_profile,
+            links or [],
             started,
         )
     finally:
@@ -162,6 +164,7 @@ async def _build_browser_strip_page_inner(
     timeout_ms: int,
     original_bytes_hint: int,
     site_profile: str,
+    links: list[ArticleLink],
     started: float,
 ) -> StripPageResponse:
     from playwright.async_api import TimeoutError as PlaywrightTimeout
@@ -225,6 +228,7 @@ async def _build_browser_strip_page_inner(
         title=title[:200],
         site_profile=site_profile,  # type: ignore[arg-type]
         strips=strips_out,
+        links=links,
         strip_width=width,
         render_engine="browser",
         stats=StripStats(

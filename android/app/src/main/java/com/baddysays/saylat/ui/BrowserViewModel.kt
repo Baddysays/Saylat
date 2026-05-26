@@ -682,19 +682,18 @@ class BrowserViewModel(
         }
     }
 
-    private suspend fun compressionLevel(): String {
-        val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
-        val smartOn = prefs.smartLayoutEnabled.first()
+    private fun compressionLevel(): String {
+        val snap = _state.value
         val smartAvail = DeviceCapabilities.canRunSmartLayout(appContext)
-        return CompressionLevel.resolve(slow, smartOn, smartAvail)
+        return CompressionLevel.resolve(snap.slowNetworkMode, snap.smartLayoutEnabled, smartAvail)
     }
 
     private suspend fun api(): com.baddysays.saylat.data.SaylatApi {
         val base = prefs.baseUrl.first()
-        val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
+        val snap = _state.value
         return ApiFactory.create(
             base,
-            slowNetwork = slow,
+            slowNetwork = snap.slowNetworkMode,
             compressionLevel = compressionLevel(),
             apiKey = com.baddysays.saylat.BuildConfig.PROXY_API_KEY,
         )
@@ -765,15 +764,16 @@ class BrowserViewModel(
     }
 
     private suspend fun extractImagesMode(): String {
-        when (effectiveReaderMode()) {
-            ReaderMode.LAYOUT, ReaderMode.NATIVE -> return ImagesMode.LAYOUT
-            ReaderMode.STRIPS, ReaderMode.VISUAL -> return ImagesMode.TINY
-            ReaderMode.WEBVIEW -> {
-                val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
-                val lite = prefs.liteImagesEnabled.first()
-                return ImagesMode.resolve(slow, lite)
-            }
-            ReaderMode.AUTO -> return ImagesMode.LAYOUT
+        val snap = _state.value
+        val ecoImages = ImagesMode.resolve(snap.slowNetworkMode, snap.liteImagesEnabled)
+        val ecoActive = snap.slowNetworkMode || snap.liteImagesEnabled
+        return when (effectiveReaderMode()) {
+            ReaderMode.LAYOUT, ReaderMode.NATIVE ->
+                if (ecoActive) ecoImages else ImagesMode.LAYOUT
+            ReaderMode.STRIPS, ReaderMode.VISUAL -> ImagesMode.TINY
+            ReaderMode.WEBVIEW -> ecoImages
+            ReaderMode.AUTO ->
+                if (ecoActive) ecoImages else ImagesMode.LAYOUT
         }
     }
 
@@ -943,8 +943,19 @@ class BrowserViewModel(
                 openTarget("telegram", resourceId = chatId, keepFeedParent = true)
             }
             href.startsWith("http://") || href.startsWith("https://") -> {
-                loadUrl(href, keepFeedParent = true)
+                viewModelScope.launch {
+                    loadStrips(href, keepFeedParent = true)
+                }
             }
+        }
+    }
+
+    fun reloadWithMode(mode: ReaderMode) {
+        val currentUrl = _urlInput.value.trim()
+        if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) return
+        viewModelScope.launch {
+            prefs.setReaderMode(mode)
+            loadUrl(currentUrl)
         }
     }
 
@@ -1181,7 +1192,10 @@ class BrowserViewModel(
     }
 
     fun updateServerUrl(url: String) {
-        viewModelScope.launch { prefs.setBaseUrl(url) }
+        viewModelScope.launch {
+            prefs.setBaseUrl(url)
+            ApiFactory.invalidateCache()
+        }
     }
 
     fun setSearchEngine(engine: SearchEngine) {

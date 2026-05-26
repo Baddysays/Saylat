@@ -57,6 +57,7 @@ data class StripPage(
     val title: String = "",
     val site_profile: String = "generic",
     val strips: List<StripSegment> = emptyList(),
+    val links: List<ArticleLink> = emptyList(),
     val strip_width: Int = 360,
     val render_engine: String = "pillow",
     val stats: StripStats = StripStats(),

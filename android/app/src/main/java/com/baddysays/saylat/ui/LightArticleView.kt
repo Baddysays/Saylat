@@ -3,10 +3,12 @@ package com.baddysays.saylat.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,13 +25,9 @@ import com.baddysays.saylat.data.SaylatArticle
 fun LightArticleView(
     article: SaylatArticle,
     onLinkClick: (String) -> Unit,
+    onLoadFull: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val body = article.plain_text.ifBlank {
-        article.blocks.filter { it.type == "paragraph" || it.type == "heading" }
-            .mapNotNull { it.text }
-            .joinToString("\n\n")
-    }
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -56,22 +54,68 @@ fun LightArticleView(
                 )
             }
         }
-        item {
-            Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 1.dp,
-            ) {
-                LinkableText(
-                    text = body,
-                    spans = null,
-                    onLinkClick = onLinkClick,
-                    modifier = Modifier.padding(16.dp),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    linkColor = MaterialTheme.colorScheme.primary,
-                )
+        if (article.plain_text.isNotBlank()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    tonalElevation = 1.dp,
+                ) {
+                    LinkableText(
+                        text = article.plain_text,
+                        spans = null,
+                        onLinkClick = onLinkClick,
+                        modifier = Modifier.padding(16.dp),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        linkColor = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
+        } else {
+            article.blocks
+                .filter { it.type == "paragraph" || it.type == "heading" || it.type == "link" }
+                .forEach { block ->
+                    item {
+                        when (block.type) {
+                            "link" -> {
+                                val href = block.href.orEmpty()
+                                if (href.isNotBlank()) {
+                                    FilledTonalButton(
+                                        onClick = { onLinkClick(href) },
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(block.text.orEmpty().ifBlank { href })
+                                    }
+                                }
+                            }
+                            else -> {
+                                val text = block.text.orEmpty()
+                                if (text.isNotBlank()) {
+                                    Surface(
+                                        shape = RoundedCornerShape(16.dp),
+                                        color = MaterialTheme.colorScheme.surface,
+                                        tonalElevation = 1.dp,
+                                    ) {
+                                        LinkableText(
+                                            text = text,
+                                            spans = block.spans,
+                                            onLinkClick = onLinkClick,
+                                            modifier = Modifier.padding(16.dp),
+                                            style = if (block.type == "heading") {
+                                                MaterialTheme.typography.titleMedium
+                                            } else {
+                                                MaterialTheme.typography.bodyLarge
+                                            },
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                            linkColor = MaterialTheme.colorScheme.primary,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
         }
         article.links.forEach { link ->
             item {
@@ -97,6 +141,14 @@ fun LightArticleView(
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.FillWidth,
                 )
+            }
+        }
+        item {
+            FilledTonalButton(
+                onClick = onLoadFull,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Открыть полную версию")
             }
         }
         item {

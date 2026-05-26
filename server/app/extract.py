@@ -9,7 +9,7 @@ from readability import Document
 
 from .config import settings
 from .images import NORMAL_PROFILE, TINY_PROFILE, fetch_image_data_url
-from .models import ArticleStats, Block, LayoutHint, SaylatArticle, TextSpan
+from .models import ArticleLink, ArticleStats, Block, LayoutHint, SaylatArticle, TextSpan
 from .pikabu_extract import (
     blocks_after_images_off,
     blocks_from_pikabu_html,
@@ -194,6 +194,29 @@ def _strip_image_blocks(blocks: list[Block]) -> list[Block]:
     return [b for b in blocks if b.type != "image"]
 
 
+def _collect_article_links(blocks: list[Block]) -> list[ArticleLink]:
+    seen: set[str] = set()
+    links: list[ArticleLink] = []
+
+    def add(text: str | None, href: str | None) -> None:
+        h = (href or "").strip()
+        if not h.startswith(("http://", "https://")):
+            return
+        t = _clean_text(text or "")
+        key = f"{h}|{t}"
+        if key in seen:
+            return
+        seen.add(key)
+        links.append(ArticleLink(text=t or h, href=h))
+
+    for block in blocks:
+        if block.type == "link":
+            add(block.text, block.href)
+        for span in block.spans or []:
+            add(span.text, span.href)
+    return links
+
+
 def _dedupe_blocks(blocks: list[Block]) -> list[Block]:
     """Убираем подряд одинаковый текст (Пикабу: alt картинки = абзац)."""
     out: list[Block] = []
@@ -314,6 +337,7 @@ async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArt
             byline=byline,
             lang=page_lang,
             blocks=blocks,
+            links=_collect_article_links(blocks),
             layout_hint=layout_hint,
             site_profile=site_profile,
             stats=ArticleStats(

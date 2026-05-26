@@ -254,6 +254,7 @@ async def build_pillow_strip_page(url: str, *, images_mode: str = "tiny") -> Str
         title=article.title,
         site_profile=article.site_profile,
         strips=strips_out,
+        links=article.links,
         strip_width=STRIP_WIDTH,
         render_engine="pillow",
         stats=StripStats(
@@ -289,6 +290,7 @@ async def build_strip_page(
                 url,
                 original_bytes_hint=article.stats.original_bytes,
                 site_profile=article.site_profile,
+                links=article.links,
             )
         except BrowserStripsError:
             if mode == "browser":

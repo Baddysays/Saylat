@@ -324,6 +324,7 @@ class StripPageResponse(BaseModel):
     title: str = ""
     site_profile: SiteProfile = "generic"
     strips: list[StripSegment] = Field(default_factory=list)
+    links: list[ArticleLink] = Field(default_factory=list)
     strip_width: int = 360
     render_engine: StripRenderEngine = "pillow"
     stats: StripStats = Field(default_factory=StripStats)

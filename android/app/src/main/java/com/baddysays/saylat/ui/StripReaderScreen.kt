@@ -44,6 +44,8 @@ fun StripReaderScreen(
     saveInProgress: Boolean,
     saveMessage: String?,
     onSaveStrips: () -> Unit,
+    onSwitchToReader: () -> Unit,
+    onOpenLink: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     when {
@@ -92,6 +94,27 @@ fun StripReaderScreen(
                                     style = MaterialTheme.typography.labelSmall,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
+                            }
+                            FilledTonalButton(
+                                onClick = onSwitchToReader,
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(14.dp),
+                            ) {
+                                Text("Открыть как текст (с ссылками)")
+                            }
+                            stripPage.links.forEach { link ->
+                                Surface(
+                                    onClick = { onOpenLink(link.href) },
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                                ) {
+                                    Text(
+                                        link.text.ifBlank { link.href },
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
                             }
                         }
                     }

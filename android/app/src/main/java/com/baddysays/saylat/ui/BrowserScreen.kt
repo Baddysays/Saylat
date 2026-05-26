@@ -27,25 +27,21 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
+import coil.compose.SubcomposeAsyncImage
 import com.baddysays.saylat.engine.CardKind
 import com.baddysays.saylat.engine.RenderCard
 
@@ -66,6 +62,26 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         }
     }
     val isFavorite = currentFavoriteUrl != null && state.favoriteLinks.any { it.url == currentFavoriteUrl }
+
+    val interceptBack = state.showLayoutLab ||
+        state.showFeedReply ||
+        state.showSettings ||
+        state.showWhatsNew ||
+        state.showWelcome ||
+        screen != AppScreen.HOME
+
+    BackHandler(enabled = interceptBack) {
+        when {
+            state.showLayoutLab -> viewModel.closeLayoutLab()
+            state.showFeedReply -> viewModel.closeFeedReply()
+            state.showSettings -> viewModel.closeSettings()
+            state.showWhatsNew -> viewModel.dismissWhatsNew()
+            state.showWelcome -> viewModel.dismissWelcome()
+            screen == AppScreen.READER -> viewModel.backFromReader()
+            screen == AppScreen.SEARCH_RESULTS -> viewModel.backFromSearch()
+            screen == AppScreen.FEED -> viewModel.backFromFeed()
+        }
+    }
 
     Box(Modifier.fillMaxSize()) {
     Scaffold(
@@ -294,6 +310,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                     saveInProgress = state.savingGallery,
                                     saveMessage = state.gallerySaveMessage,
                                     onSaveStrips = viewModel::saveCurrentPageToGallery,
+                                    onSwitchToReader = { viewModel.reloadWithMode(com.baddysays.saylat.prefs.ReaderMode.LAYOUT) },
+                                    onOpenLink = viewModel::openLink,
                                 )
                             }
                             else -> ReaderBody(
@@ -303,6 +321,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                 plan = state.plan,
                                 showStatsCards = true,
                                 onLinkClick = viewModel::openLink,
+                                onLoadFull = { viewModel.reloadWithMode(com.baddysays.saylat.prefs.ReaderMode.LAYOUT) },
                             )
                         }
                     }
@@ -315,11 +334,13 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                 article = null,
                                 plan = null,
                                 onLinkClick = viewModel::openLink,
+                                onLoadFull = { viewModel.reloadWithMode(com.baddysays.saylat.prefs.ReaderMode.LAYOUT) },
                             )
                         } else if (feed != null) {
                             FeedScreen(
                                 feed = feed,
                                 onOpenItem = viewModel::openFeedItem,
+                                onOpenLink = viewModel::openLink,
                                 onReplyItem = viewModel::prepareFeedReply,
                                 onOpenServiceSettings = viewModel::openServiceSettings,
                             )
@@ -436,42 +457,6 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
 }
 
 @Composable
-private fun ReaderUrlBar(
-    externalUrl: String,
-    loading: Boolean,
-    onGo: (String) -> Unit,
-) {
-    var draft by rememberSaveable { mutableStateOf(externalUrl) }
-    LaunchedEffect(externalUrl) {
-        if (externalUrl != draft) draft = externalUrl
-    }
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        OutlinedTextField(
-            value = draft,
-            onValueChange = { draft = it },
-            modifier = Modifier.weight(1f),
-            singleLine = true,
-            label = { Text("Страница") },
-            shape = RoundedCornerShape(20.dp),
-        )
-        FilledTonalButton(
-            onClick = { onGo(draft.trim()) },
-            enabled = !loading && draft.isNotBlank(),
-            modifier = Modifier.height(52.dp),
-            shape = RoundedCornerShape(16.dp),
-        ) {
-            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-@Composable
 private fun ReaderBody(
     loading: Boolean,
     translating: Boolean,
@@ -479,6 +464,7 @@ private fun ReaderBody(
     plan: com.baddysays.saylat.engine.RenderPlan?,
     showStatsCards: Boolean = false,
     onLinkClick: (String) -> Unit,
+    onLoadFull: () -> Unit,
 ) {
     when {
         loading || translating -> Column(
@@ -493,6 +479,7 @@ private fun ReaderBody(
         article?.compression_level == "light" -> LightArticleView(
             article = article,
             onLinkClick = onLinkClick,
+            onLoadFull = onLoadFull,
         )
         plan != null -> ArticleList(
             cards = plan.cards.filter { showStatsCards || it.kind != CardKind.STATS },
@@ -511,7 +498,7 @@ private fun ArticleList(cards: List<RenderCard>, onLinkClick: (String) -> Unit) 
     ) {
         itemsIndexed(
             items = stableCards,
-            key = { index, card -> "${card.kind.name}-$index-${card.title.hashCode()}-${card.imageSrc?.hashCode() ?: 0}" },
+            key = { index, card -> "${card.kind.name}-$index-${card.imageSrc.orEmpty()}" },
         ) { _, card ->
             RenderCardView(card, onLinkClick = onLinkClick)
         }
@@ -647,13 +634,38 @@ private fun RenderCardView(card: RenderCard, onLinkClick: (String) -> Unit) {
                         }
                     } else {
                         val imageModel = remember(card.imageSrc) { card.imageSrc }
-                        AsyncImage(
+                        SubcomposeAsyncImage(
                             model = imageModel,
                             contentDescription = card.meta,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.FillWidth,
+                            loading = {
+                                Box(
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 120.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    CircularProgressIndicator(Modifier.size(28.dp))
+                                }
+                            },
+                            error = {
+                                Surface(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(min = 80.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.85f),
+                                ) {
+                                    Text(
+                                        "Не удалось загрузить",
+                                        modifier = Modifier.padding(12.dp),
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
+                            },
                         )
                         if (card.meta.isNotBlank()) {
                             Text(

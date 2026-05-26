@@ -34,6 +34,7 @@ import com.baddysays.saylat.data.SaylatFeed
 fun FeedScreen(
     feed: SaylatFeed,
     onOpenItem: (FeedItem) -> Unit,
+    onOpenLink: (String) -> Unit,
     onReplyItem: ((FeedItem) -> Unit)? = null,
     onOpenServiceSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
@@ -71,6 +72,7 @@ fun FeedScreen(
             FeedItemCard(
                 item = item,
                 onClick = { onOpenItem(item) },
+                onOpenLink = onOpenLink,
                 onReply = if (item.actions.contains("reply")) {
                     { onReplyItem?.invoke(item) }
                 } else {
@@ -111,6 +113,7 @@ private fun EmptyFeedCard(onOpenServiceSettings: (() -> Unit)? = null) {
 private fun FeedItemCard(
     item: FeedItem,
     onClick: () -> Unit,
+    onOpenLink: (String) -> Unit,
     onReply: (() -> Unit)? = null,
 ) {
     val isNotice = item.kind == "notice"
@@ -156,10 +159,12 @@ private fun FeedItemCard(
             }
             Text(item.title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             if (item.body.isNotBlank()) {
-                Text(
+                LinkableText(
                     item.body,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                    spans = null,
+                    onLinkClick = onOpenLink,
                 )
             }
             item.time.takeIf { it.isNotBlank() }?.let {
@@ -168,6 +173,12 @@ private fun FeedItemCard(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+            val openHref = item.href?.takeIf { it.startsWith("http://") || it.startsWith("https://") }
+            openHref?.let { href ->
+                FilledTonalButton(onClick = { onOpenLink(href) }) {
+                    Text("Открыть ссылку")
+                }
             }
             onReply?.let { reply ->
                 FilledTonalButton(onClick = reply) {
