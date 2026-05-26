@@ -1,5 +1,6 @@
 <!-- TITLE: Добро пожаловать в Saylat — с чего начать -->
 <!-- CATEGORY: announcements -->
+<!-- ci: welcome discussion sync -->
 
 Привет! Это место для вопросов по Saylat, идей и настройке **личного сервера**.
 
