@@ -76,7 +76,7 @@ fun ReaderWebViewModeBanner(
     ) {
         Text("Полная страница", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleSmall)
         Text(
-            "Сайт грузится как в обычном браузере, сжатие прокси не считается. Для экономии — «Экономия» или «Полосы».",
+            "Сайт грузится как в обычном браузере. Для лёгкого чтения переключитесь на «Экономию текста» или «Полосы».",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
         )

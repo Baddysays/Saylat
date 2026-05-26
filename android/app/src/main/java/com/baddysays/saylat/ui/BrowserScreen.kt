@@ -56,6 +56,16 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     val state by viewModel.state.collectAsState()
     val searchSeed by viewModel.searchInput.collectAsState()
     val urlSeed by viewModel.urlInput.collectAsState()
+    val currentFavoriteUrl = remember(state.article, state.stripPage, state.webViewUrl, urlSeed) {
+        when {
+            !state.article?.url.isNullOrBlank() -> state.article?.url
+            !state.stripPage?.url.isNullOrBlank() -> state.stripPage?.url
+            !state.webViewUrl.isNullOrBlank() -> state.webViewUrl
+            urlSeed.startsWith("http://") || urlSeed.startsWith("https://") -> urlSeed
+            else -> null
+        }
+    }
+    val isFavorite = currentFavoriteUrl != null && state.favoriteLinks.any { it.url == currentFavoriteUrl }
 
     WelcomeSheet(
         visible = state.showWelcome,
@@ -110,6 +120,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         onReaderModeChange = viewModel::setReaderMode,
         showPageLoadStats = state.showPageLoadStats,
         onPageLoadStatsChange = viewModel::setPageLoadStatsEnabled,
+        speedMode = QuickSpeedMode.fromFlags(state.slowNetworkMode, state.liteImagesEnabled),
+        onSpeedModeChange = viewModel::setQuickSpeedMode,
         connectStatus = state.connectStatus,
         credentialsDraft = state.credentialsDraft,
         onCredentialsDraftChange = viewModel::setCredentialsDraft,
@@ -181,6 +193,10 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     (state.article != null || state.stripPage != null),
                 gallerySaveInProgress = state.savingGallery,
                 onSaveGallery = viewModel::saveCurrentPageToGallery,
+                showFavoriteActions = screen == AppScreen.READER && currentFavoriteUrl != null,
+                isFavorite = isFavorite,
+                onToggleFavorite = viewModel::toggleFavoriteForCurrentPage,
+                onPinShortcut = viewModel::pinCurrentPageShortcut,
             )
         },
         bottomBar = {
@@ -189,32 +205,13 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             } else {
                 searchSeed
             }
-            val speedMode = when {
-                state.slowNetworkMode && state.liteImagesEnabled -> QuickSpeedMode.ECO
-                state.slowNetworkMode -> QuickSpeedMode.BALANCED
-                else -> QuickSpeedMode.FAST
-            }
+            val speedMode = QuickSpeedMode.fromFlags(state.slowNetworkMode, state.liteImagesEnabled)
             BottomSearchBar(
                 externalValue = bottomValue,
                 searchEngine = state.searchEngine,
                 enabled = !state.searching && !state.loading,
                 speedMode = speedMode,
-                onSpeedModeChange = { mode ->
-                    when (mode) {
-                        QuickSpeedMode.ECO -> {
-                            viewModel.setSlowNetworkMode(true)
-                            viewModel.setLiteImagesEnabled(true)
-                        }
-                        QuickSpeedMode.BALANCED -> {
-                            viewModel.setSlowNetworkMode(true)
-                            viewModel.setLiteImagesEnabled(false)
-                        }
-                        QuickSpeedMode.FAST -> {
-                            viewModel.setSlowNetworkMode(false)
-                            viewModel.setLiteImagesEnabled(false)
-                        }
-                    }
-                },
+                onSpeedModeChange = viewModel::setQuickSpeedMode,
                 onSearch = viewModel::search,
             )
         },
@@ -323,6 +320,27 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                 }
             }
 
+            state.gallerySaveMessage
+                ?.takeIf { it.isNotBlank() && (screen != AppScreen.READER || state.stripPage == null) }
+                ?.let { msg ->
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text(
+                        text = msg,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.padding(14.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+
             Box(Modifier.fillMaxSize()) {
                 androidx.compose.runtime.key(screen) {
                 when (screen) {
@@ -344,24 +362,14 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         connectStatus = state.connectStatus,
                         onService = viewModel::openService,
                         onOpenServiceSettings = viewModel::openServiceSettings,
+                        onOpenSearchSettings = viewModel::openNetworkSettings,
                         slowNetworkMode = state.slowNetworkMode,
                         liteImagesEnabled = state.liteImagesEnabled,
-                        onSpeedModeChange = { mode ->
-                            when (mode) {
-                                QuickSpeedMode.ECO -> {
-                                    viewModel.setSlowNetworkMode(true)
-                                    viewModel.setLiteImagesEnabled(true)
-                                }
-                                QuickSpeedMode.BALANCED -> {
-                                    viewModel.setSlowNetworkMode(true)
-                                    viewModel.setLiteImagesEnabled(false)
-                                }
-                                QuickSpeedMode.FAST -> {
-                                    viewModel.setSlowNetworkMode(false)
-                                    viewModel.setLiteImagesEnabled(false)
-                                }
-                            }
-                        },
+                        onSpeedModeChange = viewModel::setQuickSpeedMode,
+                        favorites = state.favoriteLinks,
+                        onOpenFavorite = viewModel::openFavorite,
+                        onRemoveFavorite = viewModel::removeFavorite,
+                        onPinFavorite = viewModel::pinFavoriteShortcut,
                         offlineCache = state.offlineCacheEntries,
                         onOpenCached = viewModel::openCachedPage,
                     )
@@ -414,6 +422,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                 feed = feed,
                                 onOpenItem = viewModel::openFeedItem,
                                 onReplyItem = viewModel::prepareFeedReply,
+                                onOpenServiceSettings = viewModel::openServiceSettings,
                             )
                         }
                     }

@@ -17,7 +17,7 @@ object ImagesMode {
     fun hint(slowNetwork: Boolean, liteImagesEnabled: Boolean, readerMode: ReaderMode): String = when {
         readerMode == ReaderMode.LAYOUT -> "Макет сохранён, JPEG не качаются — только подписи к картинкам"
         liteImagesEnabled -> "Картинки в постах: сжатые JPEG с прокси"
-        slowNetwork -> "Картинки выключены — включите «Картинки 1–2 КБ» в Общем"
+        slowNetwork -> "Картинки выключены — включите облегчённые картинки в «Подключение»"
         else -> "Картинки в полном качестве (до 6 шт.)"
     }
 }

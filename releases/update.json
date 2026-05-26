@@ -1,7 +1,7 @@
 {
-  "version_code": 37,
-  "version_name": "0.5.27",
-  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.27/saylat.apk",
-  "release_notes": "0.5.27: новое стартовое меню, быстрые пресеты скорости и нижний поиск на всех экранах.",
+  "version_code": 43,
+  "version_name": "0.5.33",
+  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.33/saylat.apk",
+  "release_notes": "0.5.33: единый логотип Saylat — иконка приложения, интерфейс и README; обновлён брендинг.",
   "mandatory": false
 }

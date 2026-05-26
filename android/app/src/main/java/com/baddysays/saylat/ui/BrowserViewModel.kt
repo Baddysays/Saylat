@@ -45,6 +45,7 @@ import com.baddysays.saylat.network.NetworkTestResult
 import com.baddysays.saylat.network.SpeedProfile
 import com.baddysays.saylat.network.SpeedTier
 import com.baddysays.saylat.ui.theme.AppThemeId
+import com.baddysays.saylat.util.HomeShortcutHelper
 import com.baddysays.saylat.util.UrlResolver
 import com.baddysays.saylat.util.UserFacingErrors
 import kotlinx.coroutines.Dispatchers
@@ -105,6 +106,7 @@ data class BrowserUiState(
     val showWhatsNew: Boolean = false,
     val whatsNewVersion: String = "",
     val whatsNewNotes: String = "",
+    val favoriteLinks: List<SaylatPrefs.FavoriteLink> = emptyList(),
     val feed: SaylatFeed? = null,
     val readerMode: ReaderMode = ReaderMode.LAYOUT,
     val cachedNotice: String? = null,
@@ -212,6 +214,11 @@ class BrowserViewModel(
         viewModelScope.launch {
             prefs.baseUrl.collect { url ->
                 _state.value = _state.value.copy(serverUrl = url)
+            }
+        }
+        viewModelScope.launch {
+            prefs.favoriteLinks.collect { links ->
+                _state.value = _state.value.copy(favoriteLinks = links)
             }
         }
         viewModelScope.launch {
@@ -390,6 +397,10 @@ class BrowserViewModel(
         openSettings(SettingsTab.SERVICES)
     }
 
+    fun openNetworkSettings() {
+        openSettings(SettingsTab.NETWORK)
+    }
+
     fun setSettingsTab(tab: SettingsTab) {
         _state.value = _state.value.copy(settingsTab = tab)
     }
@@ -549,6 +560,25 @@ class BrowserViewModel(
 
     fun setLiteImagesEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setLiteImagesEnabled(enabled) }
+    }
+
+    fun setQuickSpeedMode(mode: QuickSpeedMode) {
+        viewModelScope.launch {
+            when (mode) {
+                QuickSpeedMode.ECO -> {
+                    prefs.setSlowNetworkMode(true)
+                    prefs.setLiteImagesEnabled(true)
+                }
+                QuickSpeedMode.BALANCED -> {
+                    prefs.setSlowNetworkMode(true)
+                    prefs.setLiteImagesEnabled(false)
+                }
+                QuickSpeedMode.FAST -> {
+                    prefs.setSlowNetworkMode(false)
+                    prefs.setLiteImagesEnabled(false)
+                }
+            }
+        }
     }
 
     fun setReaderMode(mode: ReaderMode) {
@@ -1210,9 +1240,64 @@ class BrowserViewModel(
         search()
     }
 
+    fun openExternalUrl(url: String) {
+        val normalized = normalizeUrl(url.trim())
+        if (normalized.isBlank()) return
+        _urlInput.value = normalized
+        loadUrl(normalized)
+    }
+
     fun openQuickLink(url: String) {
         _urlInput.value = url
         loadUrl(url)
+    }
+
+    fun openFavorite(url: String) {
+        openExternalUrl(url)
+    }
+
+    fun removeFavorite(url: String) {
+        viewModelScope.launch { prefs.removeFavorite(url) }
+    }
+
+    fun toggleFavoriteForCurrentPage() {
+        val current = currentFavoriteCandidate() ?: return
+        viewModelScope.launch {
+            val exists = _state.value.favoriteLinks.any { it.url == current.url }
+            if (exists) {
+                prefs.removeFavorite(current.url)
+            } else {
+                prefs.upsertFavorite(current)
+            }
+        }
+    }
+
+    fun pinCurrentPageShortcut() {
+        val current = currentFavoriteCandidate() ?: return
+        viewModelScope.launch {
+            prefs.upsertFavorite(current)
+            val ok = HomeShortcutHelper.requestPin(appContext, current.url, current.title)
+            _state.value = _state.value.copy(
+                gallerySaveMessage = if (ok) {
+                    "Ярлык добавлен на рабочий стол"
+                } else {
+                    "Android не дал закрепить ярлык на рабочем столе"
+                },
+            )
+        }
+    }
+
+    fun pinFavoriteShortcut(link: SaylatPrefs.FavoriteLink) {
+        viewModelScope.launch {
+            val ok = HomeShortcutHelper.requestPin(appContext, link.url, link.title)
+            _state.value = _state.value.copy(
+                gallerySaveMessage = if (ok) {
+                    "Ярлык «${link.title}» добавлен"
+                } else {
+                    "Не удалось добавить ярлык «${link.title}»"
+                },
+            )
+        }
     }
 
     fun search(query: String? = null) {
@@ -1270,6 +1355,28 @@ class BrowserViewModel(
 
     fun openSearchResult(hit: SearchHit) {
         loadUrl(hit.url)
+    }
+
+    private fun currentFavoriteCandidate(): SaylatPrefs.FavoriteLink? {
+        val article = _state.value.article
+        val stripPage = _state.value.stripPage
+        val webViewUrl = _state.value.webViewUrl?.trim().orEmpty()
+        val rawUrl = when {
+            !article?.url.isNullOrBlank() -> article?.url.orEmpty()
+            !stripPage?.url.isNullOrBlank() -> stripPage?.url.orEmpty()
+            webViewUrl.startsWith("http://") || webViewUrl.startsWith("https://") -> webViewUrl
+            else -> _urlInput.value.trim()
+        }
+        val normalized = normalizeUrl(rawUrl)
+        if (!normalized.startsWith("http://") && !normalized.startsWith("https://")) return null
+        val title = article?.title
+            ?: stripPage?.title
+            ?: _state.value.activeSearchQuery
+            ?: normalized
+        return SaylatPrefs.FavoriteLink(
+            title = title.ifBlank { normalized },
+            url = normalized,
+        )
     }
 
 

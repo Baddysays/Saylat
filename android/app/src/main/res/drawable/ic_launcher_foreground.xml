@@ -1,44 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
-<vector xmlns:android="http://schemas.android.com/apk/res/android"
-    android:width="108dp"
-    android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <!-- Safe zone ~66dp: bowl + greens only, без подписи (название даёт лаунчер) -->
-    <group
-        android:translateX="14.4"
-        android:translateY="14.4"
-        android:scaleX="1.65"
-        android:scaleY="1.65">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M10,28.5c0,0 3.2,9.2 14,9.2s14,-9.2 14,-9.2v-1.8H10v1.8z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M11.2,26.8h25.6c0,0 -1.2,7.8 -12.8,7.8S11.2,26.8 11.2,26.8z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M15.8,25.2c-2.8,-6.2 1.2,-11.8 6.2,-9.8 2.4,1 2.8,5.2 1.4,7.8 -1.2,2.2 -4.8,3.2 -7.6,2z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M22.4,24.6c-0.6,-7.4 5.4,-12.4 9.8,-8.6 2.2,1.8 1.6,6.8 -0.4,9 -2.4,2.8 -7,2.6 -9.4,-0.4z" />
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M30.2,25.4c2.6,-6 8.8,-5.4 9.4,1 0.2,2.4 -1.8,4.6 -4.2,5.2 -3.2,0.8 -6.8,-1.4 -5.2,-6.2z" />
-        <path
-            android:fillColor="#FDE68A"
-            android:pathData="M17.2,21.4m-1.35,0a1.35,1.35 0,1 1,2.7 0a1.35,1.35 0,1 1,-2.7 0" />
-        <path
-            android:fillColor="#FDE68A"
-            android:pathData="M24.2,19.2m-1.35,0a1.35,1.35 0,1 1,2.7 0a1.35,1.35 0,1 1,-2.7 0" />
-        <path
-            android:fillColor="#FDE68A"
-            android:pathData="M30.8,21.8m-1.35,0a1.35,1.35 0,1 1,2.7 0a1.35,1.35 0,1 1,-2.7 0" />
-        <path
-            android:fillColor="#FDE68A"
-            android:pathData="M20.4,27.2m-1.35,0a1.35,1.35 0,1 1,2.7 0a1.35,1.35 0,1 1,-2.7 0" />
-        <path
-            android:fillColor="#FDE68A"
-            android:pathData="M27.6,28.4m-1.35,0a1.35,1.35 0,1 1,2.7 0a1.35,1.35 0,1 1,-2.7 0" />
-    </group>
-</vector>
+<bitmap xmlns:android="http://schemas.android.com/apk/res/android"
+    android:src="@drawable/saylat_launcher_fg"
+    android:gravity="center" />

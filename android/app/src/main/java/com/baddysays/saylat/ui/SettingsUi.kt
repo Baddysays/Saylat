@@ -5,24 +5,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
-import androidx.compose.material3.TabRowDefaults
-import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
@@ -33,40 +32,34 @@ enum class SettingsTab(val label: String) {
     SERVICES("Аккаунты"),
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsTabBar(
     selected: SettingsTab,
     onSelect: (SettingsTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val tabs = SettingsTab.entries
-    TabRow(
-        selectedTabIndex = tabs.indexOf(selected),
-        modifier = modifier.fillMaxWidth(),
-        containerColor = Color.Transparent,
-        contentColor = MaterialTheme.colorScheme.primary,
-        indicator = { positions ->
-            if (positions.isNotEmpty()) {
-                TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(positions[tabs.indexOf(selected)]),
-                    height = 2.dp,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-        },
-        divider = {},
+    FlowRow(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        tabs.forEach { tab ->
-            Tab(
+        SettingsTab.entries.forEach { tab ->
+            FilterChip(
                 selected = tab == selected,
                 onClick = { onSelect(tab) },
-                text = {
+                label = {
                     Text(
                         tab.label,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = if (tab == selected) FontWeight.SemiBold else FontWeight.Normal,
                     )
                 },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
+                ),
             )
         }
     }

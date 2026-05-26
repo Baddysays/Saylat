@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-05-26",
+  "tool": "comfyui-mcp generate_image",
+  "model": "Juggernaut-XL_v9.safetensors",
+  "output_root": "D:\\AI\\ComfyUI\\output",
+  "assets": [
+    {
+      "file": "saylat-symbol-1024.png",
+      "role": "symbol",
+      "seed": 42001,
+      "source": "ComfyUI_00015_.png"
+    },
+    {
+      "file": "saylat-badge-1024.png",
+      "role": "badge",
+      "seed": 42002,
+      "source": "ComfyUI_00016_.png",
+      "recommended": true
+    },
+    {
+      "file": "saylat-app-icon-1024.png",
+      "role": "app_icon_reference",
+      "seed": 42003,
+      "source": "ComfyUI_00017_.png"
+    },
+    {
+      "file": "saylat-lockup-1024.png",
+      "role": "lockup",
+      "seed": 42004,
+      "source": "ComfyUI_00018_.png",
+      "deprecated": true,
+      "note": "AI mangled text; use saylat-logo.svg for wordmark"
+    },
+    {
+      "file": "saylat-badge-v2-1024.png",
+      "role": "badge",
+      "seed": 42016,
+      "source": "ComfyUI_00019_.png"
+    }
+  ],
+  "transparent_batch": {
+    "folder": "transparent/",
+    "method": "white flood-fill via scripts/logo-remove-bg.py",
+    "items": [
+      {"file": "saylat-symbol-a-42101.png", "seed": 42101, "source": "ComfyUI_00020_.png"},
+      {"file": "saylat-symbol-b-42102.png", "seed": 42102, "source": "ComfyUI_00021_.png"},
+      {"file": "saylat-symbol-c-42103.png", "seed": 42103, "source": "ComfyUI_00022_.png"},
+      {"file": "saylat-badge-42104.png", "seed": 42104, "source": "ComfyUI_00023_.png", "cutout": "flood"},
+      {"file": "saylat-symbol-d-42105.png", "seed": 42105, "source": "ComfyUI_00024_.png"}
+    ]
+  }
+}

@@ -84,6 +84,8 @@ fun SettingsSheet(
     onLiteImagesChange: (Boolean) -> Unit = {},
     showPageLoadStats: Boolean = true,
     onPageLoadStatsChange: (Boolean) -> Unit = {},
+    speedMode: QuickSpeedMode = QuickSpeedMode.BALANCED,
+    onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
     updateChecking: Boolean = false,
     updateDownloading: Boolean = false,
     updateStatus: String? = null,
@@ -144,6 +146,8 @@ fun SettingsSheet(
             onLiteImagesChange = onLiteImagesChange,
             showPageLoadStats = showPageLoadStats,
             onPageLoadStatsChange = onPageLoadStatsChange,
+            speedMode = speedMode,
+            onSpeedModeChange = onSpeedModeChange,
             updateChecking = updateChecking,
             updateDownloading = updateDownloading,
             updateStatus = updateStatus,
@@ -200,6 +204,8 @@ private fun SettingsSheetContent(
     onLiteImagesChange: (Boolean) -> Unit,
     showPageLoadStats: Boolean,
     onPageLoadStatsChange: (Boolean) -> Unit,
+    speedMode: QuickSpeedMode,
+    onSpeedModeChange: (QuickSpeedMode) -> Unit,
     updateChecking: Boolean,
     updateDownloading: Boolean,
     updateStatus: String?,
@@ -315,21 +321,10 @@ private fun SettingsSheetContent(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                             )
                         }
-                        SettingsSwitchRow(
-                            title = "Режим 2G / EDGE",
-                            subtitle = "Длинные таймауты и лёгкий сетевой тест",
-                            checked = slowNetworkMode,
-                            onCheckedChange = onSlowNetworkChange,
-                        )
-                        SettingsSwitchRow(
-                            title = "Картинки 1–2 КБ",
-                            subtitle = if (slowNetworkMode) {
-                                "До 4 JPEG ~8 КБ в посте (включите для картинок на 2G)"
-                            } else {
-                                "Сжатие на прокси для медленного канала"
-                            },
-                            checked = liteImagesEnabled,
-                            onCheckedChange = onLiteImagesChange,
+                        Text(
+                            "Параметры скорости и картинки вынесены в раздел «Подключение», чтобы сеть и прокси были в одном месте.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                         )
                     }
                     SettingsSectionCard(title = "Перевод", subtitle = "Язык в читалке") {
@@ -393,6 +388,52 @@ private fun SettingsSheetContent(
                             null -> "Проверяем связь…"
                         },
                     )
+                    SettingsSectionCard(title = "Скорость сети", subtitle = "Только про интернет и трафик") {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            QuickSpeedMode.entries.forEach { mode ->
+                                FilterChip(
+                                    selected = speedMode == mode,
+                                    onClick = { onSpeedModeChange(mode) },
+                                    label = { Text("${mode.title} · ${mode.subtitle}") },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                                    ),
+                                )
+                            }
+                        }
+                        Text(
+                            speedMode.summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "Этот пресет меняет сеть и картинки, но не способ показа страницы. Вид страницы выбирается отдельно во вкладке «Чтение».",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                        )
+                    }
+                    SettingsSectionCard(title = "Тонкая настройка", subtitle = "Обычно достаточно пресетов выше") {
+                        SettingsSwitchRow(
+                            title = "Режим 2G / EDGE",
+                            subtitle = "Включает длинные таймауты и мягкие сетевые проверки",
+                            checked = slowNetworkMode,
+                            onCheckedChange = onSlowNetworkChange,
+                        )
+                        SettingsSwitchRow(
+                            title = "Облегчённые картинки",
+                            subtitle = "Нужно только если хотите сильнее ужать картинки в WebView и похожих режимах",
+                            checked = liteImagesEnabled,
+                            onCheckedChange = onLiteImagesChange,
+                        )
+                        Text(
+                            "Эти два переключателя дублируют пресеты скорости и нужны только для ручной подстройки.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                        )
+                    }
                     SettingsSectionCard(title = "Связь", subtitle = "Автоматически") {
                         NetworkTestCard(
                             serverUrl = serverUrl,
@@ -470,10 +511,10 @@ private fun SettingsSheetContent(
 
                 SettingsTab.READER -> {
                     SettingsTipCard(
-                        title = "Режим страницы",
-                        body = "«Экономия» — текст и рамки. «Полосы (Opera)» — JPEG-полосы с сервера, можно сохранить в галерею. «Как на сайте» — полный сайт.",
+                        title = "Как понимать режимы",
+                        body = "Во вкладке «Подключение» выбирается поведение сети. Здесь выбирается только то, как показать саму страницу: текстом, полосами или как обычный сайт.",
                     )
-                    SettingsSectionCard(title = "Как открывать сайты") {
+                    SettingsSectionCard(title = "Как открывать сайты", subtitle = "Это про вид страницы, а не про сеть") {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -491,6 +532,12 @@ private fun SettingsSheetContent(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 8.dp),
+                        )
+                        Text(
+                            readerModeResultHint(readerMode, speedMode),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 4.dp),
                         )
                     }
                     SettingsSectionCard(title = "Вёрстка и статистика") {
@@ -532,6 +579,27 @@ private fun SettingsSheetContent(
                 }
             }
         }
+    }
+}
+
+private fun readerModeResultHint(readerMode: ReaderMode, speedMode: QuickSpeedMode): String = when (readerMode) {
+    ReaderMode.LAYOUT, ReaderMode.NATIVE ->
+        "Итог: страница откроется как лёгкие карточки и текст. Пресет скорости влияет только на сеть, а не на внешний вид."
+    ReaderMode.STRIPS, ReaderMode.VISUAL ->
+        "Итог: страница откроется длинными JPEG-полосами с VPS. Это ближе всего к Opera Mini и подходит для сохранения в галерею."
+    ReaderMode.WEBVIEW -> when (speedMode) {
+        QuickSpeedMode.ECO ->
+            "Итог: откроется обычный сайт, но сеть будет максимально экономной и терпеливой к плохому каналу."
+        QuickSpeedMode.BALANCED ->
+            "Итог: откроется обычный сайт с умеренной экономией и длинными таймаутами для нестабильной сети."
+        QuickSpeedMode.FAST ->
+            "Итог: откроется обычный сайт без дополнительной экономии. Лучше для Wi-Fi и хорошего 4G."
+    }
+    ReaderMode.AUTO -> when (speedMode) {
+        QuickSpeedMode.ECO, QuickSpeedMode.BALANCED ->
+            "Итог: в авто при медленной сети Saylat сначала выберет экономичный текстовый вид, а если не выйдет — подберёт запасной вариант."
+        QuickSpeedMode.FAST ->
+            "Итог: в авто при быстрой сети Saylat сначала выберет полосы, а если страница не читается — откроет её как обычный сайт."
     }
 }
 

@@ -31,10 +31,35 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.baddysays.saylat.search.SearchEngine
 
-enum class QuickSpeedMode(val title: String, val subtitle: String) {
-    ECO("Эко", "2G"),
-    BALANCED("Баланс", "умеренно"),
-    FAST("Макс", "быстро"),
+enum class QuickSpeedMode(
+    val title: String,
+    val subtitle: String,
+    val summary: String,
+) {
+    ECO(
+        "Эко",
+        "2G / минимум трафика",
+        "Длинные таймауты, максимально лёгкие картинки. Лучше для очень слабой сети.",
+    ),
+    BALANCED(
+        "Баланс",
+        "стабильно / умеренно",
+        "Длинные таймауты без агрессивного сжатия. Хорошо для нестабильного мобильного интернета.",
+    ),
+    FAST(
+        "Макс",
+        "Wi-Fi / быстро",
+        "Обычные таймауты и без экономии на картинках. Лучше для нормального интернета.",
+    ),
+    ;
+
+    companion object {
+        fun fromFlags(slowNetwork: Boolean, liteImagesEnabled: Boolean): QuickSpeedMode = when {
+            slowNetwork && liteImagesEnabled -> ECO
+            slowNetwork -> BALANCED
+            else -> FAST
+        }
+    }
 }
 
 @Composable
@@ -95,6 +120,11 @@ fun BottomSearchBar(
                     }
                 }
             }
+            Text(
+                speedMode.summary,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+            )
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),

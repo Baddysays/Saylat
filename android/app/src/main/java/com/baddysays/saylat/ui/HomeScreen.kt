@@ -1,7 +1,7 @@
 package com.baddysays.saylat.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,7 +22,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.OfflinePin
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Card
@@ -30,6 +32,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -40,11 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.baddysays.saylat.cache.PageCache
 import com.baddysays.saylat.util.formatBytes
 import com.baddysays.saylat.network.NetworkFormat
 import com.baddysays.saylat.network.NetworkTestResult
+import com.baddysays.saylat.prefs.SaylatPrefs
 import com.baddysays.saylat.search.SearchEngine
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -54,7 +59,8 @@ private data class QuickLink(val label: String, val url: String)
 
 private val quickLinks = listOf(
     QuickLink("Википедия", "https://ru.wikipedia.org/wiki/Интернет"),
-    QuickLink("Пример", "https://example.com"),
+    QuickLink("Пикабу", "https://pikabu.ru/"),
+    QuickLink("Хабр", "https://habr.com/ru/articles/"),
 )
 
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
@@ -77,9 +83,14 @@ fun HomeContent(
     connectStatus: com.baddysays.saylat.data.ConnectStatus? = null,
     onService: (String) -> Unit = {},
     onOpenServiceSettings: () -> Unit = {},
+    onOpenSearchSettings: () -> Unit = {},
     slowNetworkMode: Boolean = false,
     liteImagesEnabled: Boolean = false,
     onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
+    favorites: List<SaylatPrefs.FavoriteLink> = emptyList(),
+    onOpenFavorite: (String) -> Unit = {},
+    onRemoveFavorite: (String) -> Unit = {},
+    onPinFavorite: (SaylatPrefs.FavoriteLink) -> Unit = {},
     offlineCache: List<PageCache.CachedEntry> = emptyList(),
     onOpenCached: (String) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -152,21 +163,65 @@ fun HomeContent(
                 onOpenServiceSettings = onOpenServiceSettings,
             )
         }
+        if (favorites.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = "Избранное",
+                    subtitle = "Сохранённые страницы и ярлыки",
+                    modifier = pad,
+                )
+            }
+            items(favorites, key = { it.url }) { favorite ->
+                FavoriteRow(
+                    favorite = favorite,
+                    modifier = pad.fillMaxWidth(),
+                    onOpen = { onOpenFavorite(favorite.url) },
+                    onRemove = { onRemoveFavorite(favorite.url) },
+                    onPin = { onPinFavorite(favorite) },
+                )
+            }
+        } else {
+            item {
+                EmptyFavoritesCard(
+                    modifier = pad.fillMaxWidth(),
+                    onOpenSample = { onQuickLink("https://ru.wikipedia.org/wiki/Интернет") },
+                )
+            }
+        }
+        item {
+            HomeSectionHeader(
+                title = "Поиск и прокси",
+                subtitle = "Движок, инстанс и сетевые параметры",
+                modifier = pad,
+            )
+        }
         item {
             Surface(
+                onClick = onOpenSearchSettings,
                 modifier = pad.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(24.dp),
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 0.dp,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
             ) {
                 Row(
-                    Modifier.padding(16.dp),
+                    Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    Icon(Icons.Default.Speed, null, tint = MaterialTheme.colorScheme.primary)
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
+                    ) {
+                        Icon(
+                            Icons.Default.Search,
+                            null,
+                            modifier = Modifier.padding(10.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     Column(Modifier.weight(1f)) {
-                        Text("Поиск", fontWeight = FontWeight.SemiBold)
+                        Text("Поиск и прокси", fontWeight = FontWeight.SemiBold)
                         Text(searchEngine.label, color = MaterialTheme.colorScheme.primary)
                         Text(
                             searchEngine.description,
@@ -174,20 +229,32 @@ fun HomeContent(
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                         )
                     }
+                    Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
                 }
             }
         }
         item {
+            HomeSectionHeader(
+                title = "Быстрые ссылки",
+                subtitle = "Готовые точки входа для чтения",
+                modifier = pad,
+            )
+        }
+        item {
             Column(pad.then(Modifier.fillMaxWidth()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Быстрые ссылки", fontWeight = FontWeight.SemiBold)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     quickLinks.forEach { link ->
                         Surface(
                             onClick = { onQuickLink(link.url) },
-                            shape = RoundedCornerShape(20.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(18.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                         ) {
-                            Text(link.label, modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp))
+                            Text(
+                                link.label,
+                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
                         }
                     }
                 }
@@ -195,7 +262,11 @@ fun HomeContent(
         }
         if (offlineCache.isNotEmpty()) {
             item {
-                Text("Офлайн-кэш", modifier = pad, fontWeight = FontWeight.SemiBold)
+                HomeSectionHeader(
+                    title = "Офлайн-кэш",
+                    subtitle = "Недавно сохранённые страницы",
+                    modifier = pad,
+                )
             }
             items(offlineCache.take(8), key = { it.url }) { entry ->
                 OfflineCacheRow(
@@ -207,7 +278,11 @@ fun HomeContent(
         }
         if (recentSearches.isNotEmpty()) {
             item {
-                Text("Недавние", modifier = pad, fontWeight = FontWeight.SemiBold)
+                HomeSectionHeader(
+                    title = "Недавние",
+                    subtitle = "Последние поисковые запросы",
+                    modifier = pad,
+                )
             }
             items(recentSearches.take(5), key = { it }) { q ->
                 Surface(
@@ -215,6 +290,7 @@ fun HomeContent(
                     modifier = pad.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
                 ) {
                     Row(
                         Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -240,6 +316,106 @@ fun HomeContent(
     }
 }
 
+@Composable
+private fun HomeSectionHeader(
+    title: String,
+    subtitle: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+        Text(
+            subtitle,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EmptyFavoritesCard(
+    onOpenSample: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onOpenSample,
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Icon(Icons.Default.PushPin, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
+            Column(Modifier.weight(1f)) {
+                Text("Избранное появится здесь", fontWeight = FontWeight.SemiBold)
+                Text(
+                    "Откройте страницу и нажмите звезду вверху, чтобы сохранить её и закрепить на рабочем столе.",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+                )
+            }
+            Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FavoriteRow(
+    favorite: SaylatPrefs.FavoriteLink,
+    onOpen: () -> Unit,
+    onRemove: () -> Unit,
+    onPin: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onOpen,
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = MaterialTheme.colorScheme.surface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            ) {
+                Icon(
+                    Icons.Default.PushPin,
+                    null,
+                    Modifier.padding(9.dp).size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Column(Modifier.weight(1f)) {
+                Text(favorite.title, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(
+                    favorite.url,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            IconButton(onClick = onPin) {
+                Icon(Icons.Default.PushPin, contentDescription = "Закрепить")
+            }
+            IconButton(onClick = onRemove) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Удалить")
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SpeedModeStrip(
@@ -249,14 +425,15 @@ private fun SpeedModeStrip(
 ) {
     Surface(
         modifier = modifier,
-        shape = RoundedCornerShape(18.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 0.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
     ) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text("Скорость", fontWeight = FontWeight.SemiBold)
+            Text("Скорость сети", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
             Text(
-                "Переключайте режим без захода в настройки",
+                "Это влияет на сеть и трафик, но не меняет способ показа страницы",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
             )
@@ -276,6 +453,12 @@ private fun SpeedModeStrip(
                     )
                 }
             }
+            Text(
+                selected.summary,
+                modifier = Modifier.padding(top = 8.dp),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
+            )
         }
     }
 }
@@ -289,19 +472,26 @@ private fun HomeHero(networkResult: NetworkTestResult?) {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
                         MaterialTheme.colorScheme.background,
                     ),
                 ),
             )
-            .padding(horizontal = 20.dp, vertical = 20.dp),
+            .padding(horizontal = 20.dp, vertical = 18.dp),
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            HeroChip("тонкий браузер для плохой сети")
             SaylatBrandMark(expanded = true, iconSize = 72.dp)
             Text(
-                "Сервер сжимает страницу; на телефоне — карточки, визуальная копия или WebView через прокси.",
+                "Saylat делает чтение сайтов, лент и сервисов легче на медленном интернете.",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Сервер сжимает страницу, а на телефоне вы выбираете: лёгкий текст, полосы или страницу как на сайте.",
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.74f),
             )
             networkResult?.takeIf { it.ok }?.profile?.let { profile ->
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -332,16 +522,18 @@ private fun HomeServerStatusCard(
         Card(
             onClick = onRetry,
             modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         ) {
             HomeServerStatusRow(ready, message, checking)
         }
     } else {
         Surface(
             modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
+            shape = RoundedCornerShape(20.dp),
             color = bg,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
         ) {
             HomeServerStatusRow(ready, message, checking)
         }
@@ -395,7 +587,11 @@ private fun HomeServerStatusRow(
 @Composable
 private fun HeroChip(text: String) {
     Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)) {
-        Text(text, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium)
+        Text(
+            text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 
@@ -416,8 +612,9 @@ private fun OfflineCacheRow(
     Surface(
         onClick = onClick,
         modifier = modifier,
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
     ) {
         Row(
             Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
@@ -457,27 +654,53 @@ private fun HomeActionTile(
     Card(
         onClick = onClick,
         enabled = !loading,
-        modifier = modifier.height(108.dp),
-        shape = RoundedCornerShape(22.dp),
+        modifier = modifier.height(116.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (emphasized) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f)
+                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
             } else {
                 MaterialTheme.colorScheme.surface
             },
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(14.dp),
+                .padding(15.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            icon()
-            Column {
-                Text(title, fontWeight = FontWeight.Bold)
-                Text(subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface.copy(0.6f))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (emphasized) {
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
+                    } else {
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                    },
+                ) {
+                    Box(Modifier.padding(10.dp)) { icon() }
+                }
+                Icon(
+                    Icons.Default.ChevronRight,
+                    null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                )
             }
         }
     }

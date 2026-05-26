@@ -35,6 +35,7 @@ fun FeedScreen(
     feed: SaylatFeed,
     onOpenItem: (FeedItem) -> Unit,
     onReplyItem: ((FeedItem) -> Unit)? = null,
+    onOpenServiceSettings: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -61,6 +62,11 @@ fun FeedScreen(
                 }
             }
         }
+        if (feed.items.isEmpty()) {
+            item {
+                EmptyFeedCard(onOpenServiceSettings = onOpenServiceSettings)
+            }
+        }
         items(feed.items, key = { it.id }) { item ->
             FeedItemCard(
                 item = item,
@@ -75,6 +81,31 @@ fun FeedScreen(
     }
 }
 
+@Composable
+private fun EmptyFeedCard(onOpenServiceSettings: (() -> Unit)? = null) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(18.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+        ),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text("Пока пусто", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(
+                "Подключите Telegram, VK, почту или Дзен в разделе «Аккаунты», и лента появится здесь.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f),
+            )
+            onOpenServiceSettings?.let { openSettings ->
+                FilledTonalButton(onClick = openSettings) {
+                    Text("Открыть аккаунты")
+                }
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FeedItemCard(
@@ -83,8 +114,9 @@ private fun FeedItemCard(
     onReply: (() -> Unit)? = null,
 ) {
     val isNotice = item.kind == "notice"
+    val clickable = item.href != null || item.id.startsWith("mail-") || item.id.startsWith("tgmsg-")
     Card(
-        onClick = if (item.href != null || isNotice || item.id.startsWith("mail-")) onClick else {
+        onClick = if (clickable) onClick else {
             {}
         },
         modifier = Modifier.fillMaxWidth(),

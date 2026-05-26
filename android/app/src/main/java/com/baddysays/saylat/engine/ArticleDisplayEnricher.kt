@@ -25,9 +25,9 @@ object ArticleDisplayEnricher {
         val base = com.baddysays.saylat.util.PageLoadStats.fromStats(stats).detail
         val modeNote = when (readerMode) {
             ReaderMode.WEBVIEW -> "Режим: полная страница (без сжатия)"
-            ReaderMode.STRIPS -> "Режим: полосы JPEG (Opera Mini)"
+            ReaderMode.STRIPS -> "Режим: полосы JPEG"
             ReaderMode.LAYOUT, ReaderMode.AUTO ->
-                if (stats.images_omitted > 0) "Режим: макет без JPEG" else null
+                if (stats.images_omitted > 0) "Режим: экономия текста" else null
             ReaderMode.NATIVE, ReaderMode.VISUAL ->
                 if (stats.images_inlined > 0) "Режим: мини-картинки" else "Режим: карточки"
             else -> null

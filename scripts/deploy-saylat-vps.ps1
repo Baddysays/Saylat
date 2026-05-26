@@ -30,11 +30,21 @@ try {
 
     $versionCode = 36
     $versionName = "0.5.25"
-    $releaseNotes = "Три уровня сжатия light/medium/full для медленной сети."
+    $releaseNotes = "Обновление Saylat."
     if (Test-Path $GradleFile) {
         $gradleText = Get-Content $GradleFile -Raw
         if ($gradleText -match 'versionCode\s*=\s*(\d+)') { $versionCode = [int]$Matches[1] }
         if ($gradleText -match 'versionName\s*=\s*"([^"]+)"') { $versionName = $Matches[1] }
+    }
+    $UpdateJson = Join-Path $Root "releases\update.json"
+    if (Test-Path $UpdateJson) {
+        try {
+            $updateRaw = [System.IO.File]::ReadAllText($UpdateJson, [System.Text.Encoding]::UTF8)
+            $metaJson = $updateRaw | ConvertFrom-Json
+            if ($metaJson.release_notes) { $releaseNotes = [string]$metaJson.release_notes }
+        } catch {
+            Write-Host "WARN: не удалось прочитать releases/update.json, оставляем notes по умолчанию"
+        }
     }
 
     $releaseApk = Join-Path $Root "android\app\build\outputs\apk\release\app-release.apk"
@@ -49,7 +59,8 @@ try {
             version_name = $versionName
             release_notes = $releaseNotes
         } | ConvertTo-Json -Compress
-        Set-Content -Path (Join-Path $releasesDir "apk-meta.json") -Value $meta -Encoding UTF8
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText((Join-Path $releasesDir "apk-meta.json"), $meta, $utf8NoBom)
         Write-Host "APK + apk-meta.json ($versionName / $versionCode)"
     } else {
         Write-Host "WARN: APK not found - run: cd android; .\gradlew.bat assembleRelease"

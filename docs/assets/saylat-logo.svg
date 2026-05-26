@@ -1,0 +1,17 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="256" cy="256" r="224" fill="#F3EAD7"/>
+  <path d="M160 250H352" stroke="#2B8F84" stroke-width="16" stroke-linecap="round"/>
+  <path d="M170 254C180 316 226 362 256 370C286 362 332 316 342 254" stroke="#2B8F84" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M220 368H292C292 385 281 394 256 394C231 394 220 385 220 368Z" stroke="#2B8F84" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M198 236C167 170 210 111 262 134C287 145 294 190 276 219C261 244 225 249 198 236Z" stroke="#2B8F84" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M259 231C249 148 312 96 360 137C383 156 380 209 357 233C333 258 286 259 259 231Z" stroke="#2B8F84" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M316 239C344 174 404 182 412 243C415 268 397 292 370 298C337 305 301 283 316 239Z" stroke="#2B8F84" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M213 168C233 190 247 211 258 243" stroke="#D8EFE6" stroke-width="11" stroke-linecap="round"/>
+  <path d="M262 137C271 175 276 217 272 251" stroke="#D8EFE6" stroke-width="11" stroke-linecap="round"/>
+  <path d="M364 170C342 193 325 218 311 244" stroke="#D8EFE6" stroke-width="11" stroke-linecap="round"/>
+  <circle cx="182" cy="166" r="14" fill="#E7B64A"/>
+  <circle cx="334" cy="166" r="14" fill="#E7B64A"/>
+  <circle cx="224" cy="249" r="14" fill="#E7B64A"/>
+  <circle cx="288" cy="249" r="14" fill="#E7B64A"/>
+  <text x="256" y="308" text-anchor="middle" fill="#2B8F84" font-size="50" font-weight="700" font-family="Inter, Arial, sans-serif">Saylat</text>
+</svg>

@@ -15,11 +15,17 @@ import kotlinx.coroutines.flow.map
 private val Context.dataStore by preferencesDataStore("saylat_prefs")
 
 class SaylatPrefs(private val context: Context) {
+    data class FavoriteLink(
+        val title: String,
+        val url: String,
+    )
+
     private val serverKey = stringPreferencesKey("server_base_url")
     private val smartLayoutKey = booleanPreferencesKey("smart_layout_enabled")
     private val searchEngineKey = stringPreferencesKey("search_engine_id")
     private val searxInstanceKey = stringPreferencesKey("searx_instance_url")
     private val recentSearchesKey = stringPreferencesKey("recent_searches")
+    private val favoritesKey = stringPreferencesKey("favorite_links")
     private val translateTargetKey = stringPreferencesKey("translate_target_lang")
     private val appThemeKey = stringPreferencesKey("app_theme_id")
     private val slowNetworkKey = booleanPreferencesKey("slow_network_mode")
@@ -49,6 +55,10 @@ class SaylatPrefs(private val context: Context) {
 
     val recentSearches: Flow<List<String>> = context.dataStore.data.map { prefs ->
         decodeRecent(prefs[recentSearchesKey])
+    }
+
+    val favoriteLinks: Flow<List<FavoriteLink>> = context.dataStore.data.map { prefs ->
+        decodeFavorites(prefs[favoritesKey])
     }
 
     val translateTargetLang: Flow<String> = context.dataStore.data.map { prefs ->
@@ -119,6 +129,26 @@ class SaylatPrefs(private val context: Context) {
 
     suspend fun clearRecentSearches() {
         context.dataStore.edit { it.remove(recentSearchesKey) }
+    }
+
+    suspend fun upsertFavorite(link: FavoriteLink) {
+        val normalized = link.url.trim()
+        if (normalized.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val current = decodeFavorites(prefs[favoritesKey])
+            val next = listOf(link.copy(url = normalized)) + current.filter { it.url != normalized }
+            prefs[favoritesKey] = encodeFavorites(next.take(MAX_FAVORITES))
+        }
+    }
+
+    suspend fun removeFavorite(url: String) {
+        val normalized = url.trim()
+        if (normalized.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val next = decodeFavorites(prefs[favoritesKey]).filterNot { it.url == normalized }
+            if (next.isEmpty()) prefs.remove(favoritesKey)
+            else prefs[favoritesKey] = encodeFavorites(next)
+        }
     }
 
     suspend fun setTranslateTargetLang(code: String) {
@@ -228,13 +258,30 @@ class SaylatPrefs(private val context: Context) {
                 Build.MODEL.contains("Emulator", ignoreCase = true)
         const val DEFAULT_SEARX_INSTANCE = "https://searx.tiekoetter.com"
         private const val MAX_RECENT = 8
+        private const val MAX_FAVORITES = 10
         private const val RECENT_SEP = "\u001E"
+        private const val FIELD_SEP = "\u001F"
 
         private fun decodeRecent(raw: String?): List<String> =
             raw?.split(RECENT_SEP)?.map { it.trim() }?.filter { it.isNotEmpty() } ?: emptyList()
 
         private fun encodeRecent(items: List<String>): String =
             items.joinToString(RECENT_SEP)
+
+        private fun decodeFavorites(raw: String?): List<FavoriteLink> =
+            raw?.split(RECENT_SEP)
+                ?.mapNotNull { row ->
+                    val parts = row.split(FIELD_SEP)
+                    val title = parts.getOrNull(0)?.trim().orEmpty()
+                    val url = parts.getOrNull(1)?.trim().orEmpty()
+                    if (url.isBlank()) null else FavoriteLink(title = title.ifBlank { url }, url = url)
+                }
+                ?: emptyList()
+
+        private fun encodeFavorites(items: List<FavoriteLink>): String =
+            items.joinToString(RECENT_SEP) { item ->
+                "${item.title.trim().replace(FIELD_SEP, " ")}$FIELD_SEP${item.url.trim()}"
+            }
 
         private fun decodeSet(raw: String?): Set<String> =
             raw?.split(RECENT_SEP)?.map { it.trim() }?.filter { it.isNotEmpty() }?.toSet() ?: emptySet()

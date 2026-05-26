@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 36
-    app_version_name: str = "0.5.26"
+    app_version_code: int = 43
+    app_version_name: str = "0.5.33"
     app_release_notes: str = (
-        "Три уровня сжатия light/medium/full, личный сервер без IP в репозитории."
+        "0.5.33: единый логотип Saylat — иконка приложения, интерфейс и README; обновлён брендинг."
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"

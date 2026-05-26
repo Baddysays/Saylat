@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.PushPin
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
@@ -21,11 +24,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun SaylatTopBar(
@@ -41,7 +53,12 @@ fun SaylatTopBar(
     showGallerySave: Boolean = false,
     gallerySaveInProgress: Boolean = false,
     onSaveGallery: () -> Unit = {},
+    showFavoriteActions: Boolean = false,
+    isFavorite: Boolean = false,
+    onToggleFavorite: () -> Unit = {},
+    onPinShortcut: () -> Unit = {},
 ) {
+    val clockLabel = rememberClockLabel()
     val (title, subtitle) = when (screen) {
         AppScreen.HOME -> null to null
         AppScreen.SEARCH_RESULTS -> (activeQuery?.let { " «$it»" } ?: "Поиск") to "результаты"
@@ -107,6 +124,34 @@ fun SaylatTopBar(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.65f),
+                ) {
+                    Text(
+                        clockLabel,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (showFavoriteActions) {
+                    IconButton(
+                        onClick = onToggleFavorite,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(),
+                    ) {
+                        Icon(
+                            if (isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                            contentDescription = "В избранное",
+                        )
+                    }
+                    IconButton(
+                        onClick = onPinShortcut,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(),
+                    ) {
+                        Icon(Icons.Default.PushPin, contentDescription = "На рабочий стол")
+                    }
+                }
                 if (showGallerySave) {
                     IconButton(
                         onClick = onSaveGallery,
@@ -155,3 +200,18 @@ fun SaylatTopBar(
         }
     }
 }
+
+@Composable
+private fun rememberClockLabel(): String {
+    var label by remember { mutableStateOf(formatNow()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            label = formatNow()
+            delay(30_000)
+        }
+    }
+    return label
+}
+
+private fun formatNow(): String =
+    SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())

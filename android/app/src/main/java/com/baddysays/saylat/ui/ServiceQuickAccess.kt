@@ -1,6 +1,8 @@
 package com.baddysays.saylat.ui
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -39,6 +41,7 @@ data class ServiceCard(
     val subtitle: String,
     val icon: ImageVector,
     val connected: Boolean,
+    val setupHint: String = "Подключить",
 )
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -51,35 +54,45 @@ fun ServiceQuickAccessBlock(
 ) {
     val anyMessenger = status?.telegram == true || status?.vk == true || status?.mail == true
     val cards = listOf(
-        ServiceCard("inbox", "Все ленты", "TG · VK · почта", Icons.Default.Dashboard, anyMessenger),
+        ServiceCard("inbox", "Все ленты", "TG · VK · почта", Icons.Default.Dashboard, anyMessenger, "Подключить ленты"),
         ServiceCard("pikabu", "Пикабу", "Лента постов", Icons.AutoMirrored.Filled.Article, true),
-        ServiceCard("vk", "ВКонтакте", "Лента / wall", Icons.Default.People, status?.vk == true),
-        ServiceCard("dzen", "Дзен", "Новости", Icons.Default.Newspaper, status?.dzen == true),
-        ServiceCard("telegram", "Telegram", "Диалоги", Icons.AutoMirrored.Filled.Send, status?.telegram == true),
-        ServiceCard("mail", "Почта", "Входящие", Icons.Default.MailOutline, status?.mail == true),
+        ServiceCard("vk", "ВКонтакте", "Лента / wall", Icons.Default.People, status?.vk == true, "Подключить VK"),
+        ServiceCard("dzen", "Дзен", "Новости", Icons.Default.Newspaper, status?.dzen == true, "Добавить cookie"),
+        ServiceCard("telegram", "Telegram", "Диалоги", Icons.AutoMirrored.Filled.Send, status?.telegram == true, "Войти в Telegram"),
+        ServiceCard("mail", "Почта", "Входящие", Icons.Default.MailOutline, status?.mail == true, "Настроить почту"),
     )
 
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.surface,
         ),
-        border = androidx.compose.foundation.BorderStroke(
+        border = BorderStroke(
             1.dp,
-            MaterialTheme.colorScheme.outline.copy(alpha = 0.12f),
+            MaterialTheme.colorScheme.outline.copy(alpha = 0.08f),
         ),
     ) {
         Column(
             Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Icon(Icons.Default.Forum, null, tint = MaterialTheme.colorScheme.primary)
-                Column {
+                Surface(
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                ) {
+                    Icon(
+                        Icons.Default.Forum,
+                        null,
+                        modifier = Modifier.padding(10.dp),
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Сервисы", fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
                     Text(
-                        "Вход в Настройки → Сервисы. Ленты на 2G без WebView.",
+                        "Быстрые входы в ленты и аккаунты без лишней навигации.",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
                     )
@@ -93,7 +106,7 @@ fun ServiceQuickAccessBlock(
                     ServiceQuickCard(
                         card = card,
                         onClick = {
-                            if (!card.connected && card.id !in setOf("pikabu", "inbox")) {
+                            if (!card.connected && card.id != "pikabu") {
                                 onOpenServiceSettings()
                             } else {
                                 onService(card.id)
@@ -114,12 +127,19 @@ fun ServiceQuickAccessBlock(
 private fun ServiceQuickCard(card: ServiceCard, onClick: () -> Unit) {
     Card(
         onClick = onClick,
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = Modifier.size(width = 108.dp, height = 96.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (card.connected) {
+                MaterialTheme.colorScheme.surface
+            } else {
+                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.25f)
+            },
+        ),
+        modifier = Modifier.size(width = 116.dp, height = 104.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
     ) {
         Column(
-            Modifier.padding(10.dp),
+            Modifier.padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
             Row(
@@ -127,23 +147,62 @@ private fun ServiceQuickCard(card: ServiceCard, onClick: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(card.icon, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
                 Surface(
-                    shape = CircleShape,
+                    shape = RoundedCornerShape(14.dp),
                     color = if (card.connected) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
                     } else {
-                        MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
                     },
-                    modifier = Modifier.size(8.dp),
-                ) {}
+                ) {
+                    Box(Modifier.padding(9.dp)) {
+                        Icon(card.icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+                Surface(
+                    shape = RoundedCornerShape(999.dp),
+                    color = if (card.connected) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surface
+                    },
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Surface(
+                            shape = CircleShape,
+                            color = if (card.connected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                            },
+                            modifier = Modifier.size(6.dp),
+                        ) {}
+                        Text(
+                            if (card.connected) "готово" else "вход",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (card.connected) {
+                                MaterialTheme.colorScheme.onPrimaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f)
+                            },
+                        )
+                    }
+                }
             }
-            Column {
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(card.title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.labelLarge)
                 Text(
-                    card.subtitle,
+                    if (card.connected) card.subtitle else card.setupHint,
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+                    color = if (card.connected) {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
                     maxLines = 2,
                 )
             }
