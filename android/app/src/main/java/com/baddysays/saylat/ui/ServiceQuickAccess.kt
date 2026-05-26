@@ -17,7 +17,7 @@ import androidx.compose.material.icons.filled.Forum
 import androidx.compose.material.icons.filled.MailOutline
 import androidx.compose.material.icons.filled.Newspaper
 import androidx.compose.material.icons.filled.People
-import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,7 +55,7 @@ fun ServiceQuickAccessBlock(
         ServiceCard("pikabu", "Пикабу", "Лента постов", Icons.AutoMirrored.Filled.Article, true),
         ServiceCard("vk", "ВКонтакте", "Лента / wall", Icons.Default.People, status?.vk == true),
         ServiceCard("dzen", "Дзен", "Новости", Icons.Default.Newspaper, status?.dzen == true),
-        ServiceCard("telegram", "Telegram", "Диалоги", Icons.Default.Send, status?.telegram == true),
+        ServiceCard("telegram", "Telegram", "Диалоги", Icons.AutoMirrored.Filled.Send, status?.telegram == true),
         ServiceCard("mail", "Почта", "Входящие", Icons.Default.MailOutline, status?.mail == true),
     )
 
