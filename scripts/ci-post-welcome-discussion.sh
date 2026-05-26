@@ -21,10 +21,9 @@ fi
 
 echo "Using category_id=$CAT_ID"
 
-resp="$(gh api --method POST repos/Baddysays/Saylat/discussions \
-  -f title="$TITLE" \
-  -f body="$BODY" \
-  -F category_id="$CAT_ID")"
+payload="$(jq -n --arg title "$TITLE" --arg body "$BODY" --argjson category_id "$CAT_ID" \
+  '{title: $title, body: $body, category_id: $category_id}')"
+resp="$(gh api --method POST repos/Baddysays/Saylat/discussions --input - <<<"$payload")"
 
 url="$(echo "$resp" | jq -r '.html_url')"
 echo "Created: $url"
