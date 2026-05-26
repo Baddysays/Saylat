@@ -1,0 +1,19 @@
+title: "❓ Вопрос и ответ"
+labels:
+  - question
+category: "Q&A"
+body:
+  - type: markdown
+    value: |
+      Формат «один вопрос — ответы сообщества». Если это **баг**, лучше [Issue](https://github.com/Baddysays/Saylat/issues/new?template=bug_report.md).
+  - type: textarea
+    id: question
+    attributes:
+      label: Вопрос
+    validations:
+      required: true
+  - type: textarea
+    id: tried
+    attributes:
+      label: Что уже пробовали
+      placeholder: "Перезапуск, другая сеть, другой URL сервера…"

@@ -81,7 +81,7 @@ docker compose up -d --build
 
 - ✉️ Почта: [hello@baddysays.ru](mailto:hello@baddysays.ru)
 - 💬 Telegram: [@baddysays](https://t.me/baddysays)
-- 💬 [Discussions](https://github.com/Baddysays/Saylat/discussions) — вопросы, идеи, «как настроить»
+- 💬 [Discussions](https://github.com/Baddysays/Saylat/discussions) — [вопрос](https://github.com/Baddysays/Saylat/discussions/new?category=general) · [идея](https://github.com/Baddysays/Saylat/discussions/new?category=ideas) · [Q&A](https://github.com/Baddysays/Saylat/discussions/new?category=q-a)
 - 🐛 [Issues](https://github.com/Baddysays/Saylat/issues) — ошибки
 - 🔧 Pull request — см. [CONTRIBUTING.md](CONTRIBUTING.md)
 

@@ -1,0 +1,29 @@
+title: "🖥 Настройка личного сервера"
+labels:
+  - server
+category: "General"
+body:
+  - type: markdown
+    value: |
+      Помощь с VPS, Docker и `install-saylat-server.sh`. Документация: [docs/LICHNYI-SERVER.md](https://github.com/Baddysays/Saylat/blob/main/docs/LICHNYI-SERVER.md).
+      Укажите ОС VPS и **без** секретов (пароли, ключи API).
+  - type: dropdown
+    id: os
+    attributes:
+      label: ОС на VPS
+      options:
+        - Ubuntu / Debian
+        - Другая Linux
+        - Не знаю
+  - type: input
+    id: domain
+    attributes:
+      label: Как открываете Saylat
+      placeholder: "http://IP:8787"
+  - type: textarea
+    id: problem
+    attributes:
+      label: На каком шаге застряли
+      description: Команда, сообщение об ошибке, скрин (без токенов)
+    validations:
+      required: true

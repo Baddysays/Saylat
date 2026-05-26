@@ -6,9 +6,15 @@ contact_links:
   - name: Почта — hello@baddysays.ru
     url: mailto:hello@baddysays.ru
     about: Связаться по почте
-  - name: Вопросы и обсуждения
-    url: https://github.com/Baddysays/Saylat/discussions
-    about: Общие вопросы по Saylat, настройке VPS и APK
+  - name: Общий вопрос (Discussions)
+    url: https://github.com/Baddysays/Saylat/discussions/new?category=general
+    about: Вопросы по Saylat, APK и использованию
+  - name: Настройка VPS (Discussions)
+    url: https://github.com/Baddysays/Saylat/discussions/new?category=general
+    about: Docker, install-saylat-server.sh, порт 8787
+  - name: Идея (Discussions)
+    url: https://github.com/Baddysays/Saylat/discussions/new?category=ideas
+    about: Предложить функцию или улучшение
   - name: Сообщить об ошибке
     url: https://github.com/Baddysays/Saylat/issues/new?template=bug_report.md
     about: Баг в Android или сервере
