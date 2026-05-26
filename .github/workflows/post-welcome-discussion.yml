@@ -43,25 +43,24 @@ jobs:
           BODY="$(cat welcome-body.md)"
 
           lookup="$(gh api graphql -f query='
-            query($owner: String!, $name: String!, $number: Int!) {
-              repository(owner: $owner, name: $name) {
-                discussion(number: $number) { id url title }
+            query {
+              repository(owner: "Baddysays", name: "Saylat") {
+                discussion(number: 1) { id url title }
               }
-            }' -f owner='Baddysays' -f name='Saylat' -F number="$WELCOME_NUMBER")"
+            }')"
 
           disc_id="$(echo "$lookup" | jq -r '.data.repository.discussion.id')"
           url="$(echo "$lookup" | jq -r '.data.repository.discussion.url')"
 
           if [ -n "$disc_id" ] && [ "$disc_id" != "null" ]; then
-            gh api graphql \
-              -f query='mutation($id: ID!, $title: String!, $body: String!) {
-                updateDiscussion(input: {discussionId: $id, title: $title, body: $body}) {
-                  discussion { id url }
-                }
-              }' \
-              -f id="$disc_id" \
-              -f title="$TITLE" \
-              -f body="$BODY"
+            jq -n \
+              --arg id "$disc_id" \
+              --arg title "$TITLE" \
+              --arg body "$BODY" \
+              '{
+                query: "mutation($id: ID!, $title: String!, $body: String!) { updateDiscussion(input: {discussionId: $id, title: $title, body: $body}) { discussion { id url } } }",
+                variables: {id: $id, title: $title, body: $body}
+              }' | gh api graphql --input -
             echo "Updated: $url"
           else
             CAT_ID="$(gh api graphql -f query='
