@@ -246,7 +246,7 @@ private fun SettingsSheetContent(
             .padding(bottom = 32.dp),
     ) {
         Column(Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            SaylatBrandMark(expanded = false, iconSize = 36.dp, showWordmark = false)
+            SaylatBrandMark(iconSize = 32.dp, showWordmark = false)
             Text(
                 "Настройки",
                 style = MaterialTheme.typography.headlineSmall,

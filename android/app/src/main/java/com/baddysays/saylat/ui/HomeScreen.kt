@@ -482,7 +482,6 @@ private fun HomeHero(networkResult: NetworkTestResult?) {
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
             HeroChip("тонкий браузер для плохой сети")
-            SaylatBrandMark(expanded = true, iconSize = 72.dp)
             Text(
                 "Saylat делает чтение сайтов, лент и сервисов легче на медленном интернете.",
                 style = MaterialTheme.typography.headlineSmall,

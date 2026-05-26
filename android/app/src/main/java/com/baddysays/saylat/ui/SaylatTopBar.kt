@@ -93,9 +93,8 @@ fun SaylatTopBar(
                 AppScreen.HOME -> SaylatBrandMark(
                     modifier = Modifier
                         .weight(1f)
-                        .padding(horizontal = 12.dp),
-                    expanded = true,
-                    iconSize = 40.dp,
+                        .padding(start = 4.dp),
+                    iconSize = 34.dp,
                 )
                 else -> {
                     val t = title ?: ""

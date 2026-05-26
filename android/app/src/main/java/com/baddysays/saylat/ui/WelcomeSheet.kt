@@ -42,7 +42,7 @@ fun WelcomeSheet(
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            SaylatBrandMark(expanded = true, iconSize = 56.dp)
+            SaylatBrandMark(iconSize = 44.dp)
             Text(
                 "Добро пожаловать",
                 style = MaterialTheme.typography.headlineSmall,

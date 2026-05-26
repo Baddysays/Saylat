@@ -67,108 +67,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
     }
     val isFavorite = currentFavoriteUrl != null && state.favoriteLinks.any { it.url == currentFavoriteUrl }
 
-    WelcomeSheet(
-        visible = state.showWelcome,
-        needsServerUrl = state.needsServerUrlSetup,
-        serverUrlDraft = state.welcomeServerDraft,
-        onServerUrlChange = viewModel::setWelcomeServerDraft,
-        serverReady = state.serverReady,
-        onStart = viewModel::dismissWelcome,
-    )
-
-    if (state.showWhatsNew) {
-        WhatsNewSheet(
-            visible = true,
-            versionName = state.whatsNewVersion.ifBlank { com.baddysays.saylat.BuildConfig.VERSION_NAME },
-            releaseNotes = state.whatsNewNotes,
-            onDismiss = viewModel::dismissWhatsNew,
-        )
-    }
-
-    if (state.showSettings) {
-        SettingsSheet(
-        visible = true,
-        serverUrl = state.serverUrl,
-        searchEngine = state.searchEngine,
-        searxInstanceUrl = state.searxInstanceUrl,
-        smartLayoutEnabled = state.smartLayoutEnabled,
-        smartLayoutAvailable = state.smartLayoutAvailable,
-        smartLayoutHint = state.smartLayoutHint,
-        onDismiss = viewModel::closeSettings,
-        onSaveServer = viewModel::updateServerUrl,
-        onSearchEngine = viewModel::setSearchEngine,
-        onSearxInstance = viewModel::setSearxInstance,
-        onSmartLayoutChange = viewModel::setSmartLayoutEnabled,
-        onClearRecent = viewModel::clearRecentSearches,
-        updateChecking = state.updateChecking,
-        updateDownloading = state.updateDownloading,
-        updateStatus = state.updateStatus,
-        onCheckUpdate = viewModel::checkAndInstallUpdate,
-        translateTargetLang = state.translateTargetLang,
-        onTranslateTarget = viewModel::setTranslateTargetLang,
-        appTheme = state.appTheme,
-        onAppTheme = viewModel::setAppTheme,
-        networkTesting = state.networkTesting,
-        networkTestResult = state.networkTestResult,
-        onRunNetworkTest = viewModel::runNetworkTest,
-        slowNetworkMode = state.slowNetworkMode,
-        deviceProfile = state.deviceProfile,
-        onSlowNetworkChange = viewModel::setSlowNetworkMode,
-        liteImagesEnabled = state.liteImagesEnabled,
-        onLiteImagesChange = viewModel::setLiteImagesEnabled,
-        readerMode = state.readerMode,
-        onReaderModeChange = viewModel::setReaderMode,
-        showPageLoadStats = state.showPageLoadStats,
-        onPageLoadStatsChange = viewModel::setPageLoadStatsEnabled,
-        speedMode = QuickSpeedMode.fromFlags(state.slowNetworkMode, state.liteImagesEnabled),
-        onSpeedModeChange = viewModel::setQuickSpeedMode,
-        connectStatus = state.connectStatus,
-        credentialsDraft = state.credentialsDraft,
-        onCredentialsDraftChange = viewModel::setCredentialsDraft,
-        credentialsLoading = state.credentialsLoading,
-        credentialsSaving = state.credentialsSaving,
-        credentialsMessage = state.credentialsMessage,
-        telegramCodeSent = state.telegramCodeSent,
-        onSaveCredentials = viewModel::saveServiceCredentials,
-        onTelegramRequestCode = viewModel::requestTelegramCode,
-        onTelegramSignIn = viewModel::signInTelegram,
-        connectLoading = state.connectLoading,
-        settingsTab = state.settingsTab,
-        onSettingsTabChange = viewModel::setSettingsTab,
-        cacheStats = state.cacheStats,
-        onClearAppCache = viewModel::clearAppCache,
-        customServerEnabled = state.customServerEnabled,
-        serverReady = state.serverReady,
-        onCustomServerChange = viewModel::setCustomServerEnabled,
-        )
-    }
-
-    MailReplySheet(
-        visible = state.showFeedReply,
-        title = when (state.replySource) {
-            "telegram" -> "Ответ в Telegram"
-            "imap", "mail" -> "Ответ на письмо"
-            else -> "Ответ"
-        },
-        sending = state.feedReplySending,
-        error = state.feedReplyError,
-        onDismiss = viewModel::closeFeedReply,
-        onSend = viewModel::sendFeedReply,
-    )
-
-    if (state.showLayoutLab) {
-        LayoutLabSheet(
-        visible = true,
-        loading = state.layoutLabLoading,
-        result = state.layoutLabResult,
-        smartAvailable = state.smartLayoutAvailable,
-        smartHint = state.smartLayoutHint,
-        onDismiss = viewModel::closeLayoutLab,
-        onOpenBaseline = { viewModel.openLayoutLabReader(useSmart = false) },
-        onOpenSmart = { viewModel.openLayoutLabReader(useSmart = true) },
-        )
-    }
-
+    Box(Modifier.fillMaxSize()) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -430,6 +329,109 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                 }
             }
         }
+    }
+
+    WelcomeSheet(
+        visible = state.showWelcome,
+        needsServerUrl = state.needsServerUrlSetup,
+        serverUrlDraft = state.welcomeServerDraft,
+        onServerUrlChange = viewModel::setWelcomeServerDraft,
+        serverReady = state.serverReady,
+        onStart = viewModel::dismissWelcome,
+    )
+
+    if (state.showWhatsNew) {
+        WhatsNewSheet(
+            visible = true,
+            versionName = state.whatsNewVersion.ifBlank { com.baddysays.saylat.BuildConfig.VERSION_NAME },
+            releaseNotes = state.whatsNewNotes,
+            onDismiss = viewModel::dismissWhatsNew,
+        )
+    }
+
+    if (state.showSettings) {
+        SettingsSheet(
+            visible = true,
+            serverUrl = state.serverUrl,
+            searchEngine = state.searchEngine,
+            searxInstanceUrl = state.searxInstanceUrl,
+            smartLayoutEnabled = state.smartLayoutEnabled,
+            smartLayoutAvailable = state.smartLayoutAvailable,
+            smartLayoutHint = state.smartLayoutHint,
+            onDismiss = viewModel::closeSettings,
+            onSaveServer = viewModel::updateServerUrl,
+            onSearchEngine = viewModel::setSearchEngine,
+            onSearxInstance = viewModel::setSearxInstance,
+            onSmartLayoutChange = viewModel::setSmartLayoutEnabled,
+            onClearRecent = viewModel::clearRecentSearches,
+            updateChecking = state.updateChecking,
+            updateDownloading = state.updateDownloading,
+            updateStatus = state.updateStatus,
+            onCheckUpdate = viewModel::checkAndInstallUpdate,
+            translateTargetLang = state.translateTargetLang,
+            onTranslateTarget = viewModel::setTranslateTargetLang,
+            appTheme = state.appTheme,
+            onAppTheme = viewModel::setAppTheme,
+            networkTesting = state.networkTesting,
+            networkTestResult = state.networkTestResult,
+            onRunNetworkTest = viewModel::runNetworkTest,
+            slowNetworkMode = state.slowNetworkMode,
+            deviceProfile = state.deviceProfile,
+            onSlowNetworkChange = viewModel::setSlowNetworkMode,
+            liteImagesEnabled = state.liteImagesEnabled,
+            onLiteImagesChange = viewModel::setLiteImagesEnabled,
+            readerMode = state.readerMode,
+            onReaderModeChange = viewModel::setReaderMode,
+            showPageLoadStats = state.showPageLoadStats,
+            onPageLoadStatsChange = viewModel::setPageLoadStatsEnabled,
+            speedMode = QuickSpeedMode.fromFlags(state.slowNetworkMode, state.liteImagesEnabled),
+            onSpeedModeChange = viewModel::setQuickSpeedMode,
+            connectStatus = state.connectStatus,
+            credentialsDraft = state.credentialsDraft,
+            onCredentialsDraftChange = viewModel::setCredentialsDraft,
+            credentialsLoading = state.credentialsLoading,
+            credentialsSaving = state.credentialsSaving,
+            credentialsMessage = state.credentialsMessage,
+            telegramCodeSent = state.telegramCodeSent,
+            onSaveCredentials = viewModel::saveServiceCredentials,
+            onTelegramRequestCode = viewModel::requestTelegramCode,
+            onTelegramSignIn = viewModel::signInTelegram,
+            connectLoading = state.connectLoading,
+            settingsTab = state.settingsTab,
+            onSettingsTabChange = viewModel::setSettingsTab,
+            cacheStats = state.cacheStats,
+            onClearAppCache = viewModel::clearAppCache,
+            customServerEnabled = state.customServerEnabled,
+            serverReady = state.serverReady,
+            onCustomServerChange = viewModel::setCustomServerEnabled,
+        )
+    }
+
+    MailReplySheet(
+        visible = state.showFeedReply,
+        title = when (state.replySource) {
+            "telegram" -> "Ответ в Telegram"
+            "imap", "mail" -> "Ответ на письмо"
+            else -> "Ответ"
+        },
+        sending = state.feedReplySending,
+        error = state.feedReplyError,
+        onDismiss = viewModel::closeFeedReply,
+        onSend = viewModel::sendFeedReply,
+    )
+
+    if (state.showLayoutLab) {
+        LayoutLabSheet(
+            visible = true,
+            loading = state.layoutLabLoading,
+            result = state.layoutLabResult,
+            smartAvailable = state.smartLayoutAvailable,
+            smartHint = state.smartLayoutHint,
+            onDismiss = viewModel::closeLayoutLab,
+            onOpenBaseline = { viewModel.openLayoutLabReader(useSmart = false) },
+            onOpenSmart = { viewModel.openLayoutLabReader(useSmart = true) },
+        )
+    }
     }
 }
 
