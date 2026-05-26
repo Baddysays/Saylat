@@ -1,4 +1,4 @@
-# One-time (and manual) welcome post for Discussions.
+# Creates pinned welcome post in Discussions (idempotent).
 name: Post welcome discussion
 
 on:
@@ -24,45 +24,35 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          TITLE="Добро пожаловать в Saylat — с чего начать"
+          TITLE='Добро пожаловать в Saylat — с чего начать'
 
-          existing=$(gh api graphql -f query='
-            query($owner: String!, $name: String!) {
-              repository(owner: $owner, name: $name) {
-                discussions(first: 30, orderBy: {field: CREATED_AT, direction: DESC}) {
-                  nodes { title }
-                }
-              }
-            }' -f owner='Baddysays' -f name='Saylat' \
-            --jq '.data.repository.discussions.nodes[].title' || true)
-
-          if echo "$existing" | grep -Fxq "$TITLE"; then
-            echo "Welcome discussion already exists — skip."
+          if gh api "repos/Baddysays/Saylat/discussions" --paginate \
+            --jq ".[] | select(.title==\"$TITLE\") | .number" | grep -q .; then
+            echo "Welcome discussion already exists."
             exit 0
           fi
 
-          # Strip HTML comments from welcome file
-          BODY=$(sed '1,2d' docs/github/DISCUSSIONS-WELCOME.md | sed '/^<!--/d' | sed '/^-->$/d')
+          BODY=$(python3 <<'PY'
+          import re
+          text = open("docs/github/DISCUSSIONS-WELCOME.md", encoding="utf-8").read()
+          text = re.sub(r"<!--.*?-->\s*", "", text, flags=re.S)
+          print(text.strip())
+          PY
+          )
 
-          pick_category() {
-            local slug="$1"
-            gh api repos/Baddysays/Saylat/discussions/categories \
-              --jq ".[] | select(.slug==\"$slug\") | .id" 2>/dev/null | head -n1
-          }
-
-          CAT_ID=$(pick_category announcements)
+          CAT_ID=$(gh api repos/Baddysays/Saylat/discussions/categories \
+            --jq '.[] | select(.slug=="general") | .id' | head -n1)
           if [ -z "$CAT_ID" ]; then
-            CAT_ID=$(pick_category general)
-          fi
-          if [ -z "$CAT_ID" ]; then
-            echo "No discussion category found"
-            exit 1
+            CAT_ID=$(gh api repos/Baddysays/Saylat/discussions/categories --jq '.[0].id')
           fi
 
-          discussion=$(gh api repos/Baddysays/Saylat/discussions \
+          resp=$(gh api --method POST repos/Baddysays/Saylat/discussions \
             -f title="$TITLE" \
             -f body="$BODY" \
-            -f category_id="$CAT_ID")
+            -F category_id="$CAT_ID")
 
-          echo "$discussion" | jq -r '.html_url'
-          echo "Created welcome discussion."
+          echo "$resp" | jq -r '.html_url'
+          NODE_ID=$(echo "$resp" | jq -r '.node_id')
+
+          gh api graphql -f query='mutation($id: ID!) { pinDiscussion(input: {discussionId: $id}) { clientMutationId } }' \
+            -f id="$NODE_ID" || echo "Pin skipped (needs maintainer — pin manually in UI)"
