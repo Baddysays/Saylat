@@ -9,6 +9,12 @@
 2. **Сервер** — скрипт `install-saylat-server.sh`, подробнее в [docs/LICHNYI-SERVER.md](https://github.com/Baddysays/Saylat/blob/main/docs/LICHNYI-SERVER.md)
 3. В приложении: **Настройки → адрес сервера** (`http://IP:8787`)
 
+## Как это выглядит
+
+![Главная: режимы скорости](https://raw.githubusercontent.com/Baddysays/Saylat/main/docs/assets/screenshots/home-speed-modes.png)
+![Настройки: чтение](https://raw.githubusercontent.com/Baddysays/Saylat/main/docs/assets/screenshots/settings-reading-modes.png)
+![Настройки: темы](https://raw.githubusercontent.com/Baddysays/Saylat/main/docs/assets/screenshots/settings-themes-dark.png)
+
 ## Куда писать
 
 | Тема | Куда |

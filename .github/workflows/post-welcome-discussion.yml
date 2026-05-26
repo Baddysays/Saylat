@@ -1,4 +1,4 @@
-# Creates welcome post in Discussions (idempotent).
+# Creates or updates welcome post in Discussions.
 name: Post welcome discussion
 
 on:
@@ -19,27 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Create welcome discussion if missing
+      - name: Create or update welcome discussion
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euxo pipefail
-          TITLE='Ð”Ð¾Ð±Ñ€Ð¾ Ð¿Ð¾Ð¶Ð°Ð»Ð¾Ð²Ð°Ñ‚ÑŒ Ð² Saylat â€” Ñ Ñ‡ÐµÐ³Ð¾ Ð½Ð°Ñ‡Ð°Ñ‚ÑŒ'
+          TITLE='Äîáðî ïîæàëîâàòü â Saylat — ñ ÷åãî íà÷àòü'
           REPO_ID='R_kgDOSnrE7Q'
-
-          existing="$(gh api graphql -f query='
-            query {
-              repository(owner: "Baddysays", name: "Saylat") {
-                discussions(first: 30, orderBy: {field: CREATED_AT, direction: DESC}) {
-                  nodes { title }
-                }
-              }
-            }' --jq '.data.repository.discussions.nodes[].title' 2>/dev/null || true)"
-
-          if echo "$existing" | grep -Fxq "$TITLE"; then
-            echo "Welcome discussion already exists."
-            exit 0
-          fi
 
           BODY="$(python3 -c "
           import re
@@ -48,44 +34,62 @@ jobs:
           print(t.strip())
           ")"
 
-          CAT_ID="$(gh api graphql -f query='
+          existing_json="$(gh api graphql -f query='
             query {
               repository(owner: "Baddysays", name: "Saylat") {
-                discussionCategories(first: 20) {
-                  nodes { id slug }
+                discussions(first: 30, orderBy: {field: CREATED_AT, direction: DESC}) {
+                  nodes { id title url }
                 }
               }
-            }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug=="general") | .id' | head -n1)"
+            }')"
 
-          if [ -z "$CAT_ID" ]; then
-            echo "Could not resolve General category id:"
-            gh api graphql -f query='
+          existing_id="$(echo "$existing_json" | jq -r --arg t "$TITLE" '.data.repository.discussions.nodes[] | select(.title==$t) | .id' | head -n1)"
+          existing_url="$(echo "$existing_json" | jq -r --arg t "$TITLE" '.data.repository.discussions.nodes[] | select(.title==$t) | .url' | head -n1)"
+
+          if [ -n "$existing_id" ] && [ "$existing_id" != "null" ]; then
+            gh api graphql \
+              -f query='mutation($id: ID!, $title: String!, $body: String!) {
+                updateDiscussion(input: {discussionId: $id, title: $title, body: $body}) {
+                  discussion { id url }
+                }
+              }' \
+              -f id="$existing_id" \
+              -f title="$TITLE" \
+              -f body="$BODY"
+            disc_id="$existing_id"
+            url="$existing_url"
+            echo "Updated: $url"
+          else
+            CAT_ID="$(gh api graphql -f query='
               query {
                 repository(owner: "Baddysays", name: "Saylat") {
-                  discussionCategories(first: 20) { nodes { id slug name } }
+                  discussionCategories(first: 20) { nodes { id slug } }
                 }
-              }'
-            exit 1
+              }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug=="general") | .id' | head -n1)"
+
+            if [ -z "$CAT_ID" ]; then
+              echo "Could not resolve General category id"
+              exit 1
+            fi
+
+            result="$(gh api graphql \
+              -f query='mutation($repo: ID!, $cat: ID!, $title: String!, $body: String!) {
+                createDiscussion(input: {repositoryId: $repo, categoryId: $cat, title: $title, body: $body}) {
+                  discussion { url id }
+                }
+              }' \
+              -f repo="$REPO_ID" \
+              -f cat="$CAT_ID" \
+              -f title="$TITLE" \
+              -f body="$BODY")"
+
+            url="$(echo "$result" | jq -r '.data.createDiscussion.discussion.url')"
+            disc_id="$(echo "$result" | jq -r '.data.createDiscussion.discussion.id')"
+            echo "Created: $url"
           fi
-
-          result="$(gh api graphql \
-            -f query='mutation($repo: ID!, $cat: ID!, $title: String!, $body: String!) {
-              createDiscussion(input: {repositoryId: $repo, categoryId: $cat, title: $title, body: $body}) {
-                discussion { url id }
-              }
-            }' \
-            -f repo="$REPO_ID" \
-            -f cat="$CAT_ID" \
-            -f title="$TITLE" \
-            -f body="$BODY")"
-
-          echo "$result"
-          url="$(echo "$result" | jq -r '.data.createDiscussion.discussion.url')"
-          disc_id="$(echo "$result" | jq -r '.data.createDiscussion.discussion.id')"
-          echo "Created: $url"
 
           gh api graphql \
             -f query='mutation($id: ID!) { pinDiscussion(input: {discussionId: $id}) { clientMutationId } }' \
             -f id="$disc_id" \
             && echo "Pinned." \
-            || echo "Pin skipped â€” open $url and Pin discussion manually."
+            || echo "Pin skipped — open $url and Pin discussion manually."

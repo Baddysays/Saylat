@@ -39,11 +39,9 @@ Saylat — это **ваш** прокси на VPS или домашнем ПК,
 ## 📸 Как это выглядит
 
 <p align="center">
-  <img src="docs/assets/saylat-logo.png" width="280" alt="Иконка Saylat" />
-</p>
-
-<p align="center">
-  <em>Скриншоты интерфейса можно положить в <code>docs/assets/screenshots/</code> — pull request приветствуется.</em>
+  <img src="docs/assets/screenshots/home-speed-modes.png" width="280" alt="Главная Saylat: режимы скорости" />
+  <img src="docs/assets/screenshots/settings-reading-modes.png" width="280" alt="Настройки Saylat: режимы чтения" />
+  <img src="docs/assets/screenshots/settings-themes-dark.png" width="280" alt="Настройки Saylat: темы интерфейса" />
 </p>
 
 ## 🔧 Быстрый старт (для разработчиков)
