@@ -27,10 +27,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
 enum class SettingsTab(val label: String) {
-    GENERAL("Общее"),
-    NETWORK("Сеть"),
-    READER("Читалка"),
-    SERVICES("Сервисы"),
+    GENERAL("Базовые"),
+    NETWORK("Подключение"),
+    READER("Чтение"),
+    SERVICES("Аккаунты"),
 }
 
 @Composable

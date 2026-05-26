@@ -184,14 +184,39 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             )
         },
         bottomBar = {
-            if (screen == AppScreen.HOME) {
-                BottomSearchBar(
-                    externalValue = searchSeed,
-                    searchEngine = state.searchEngine,
-                    enabled = !state.searching,
-                    onSearch = viewModel::search,
-                )
+            val bottomValue = if (screen == AppScreen.READER || screen == AppScreen.FEED) {
+                urlSeed
+            } else {
+                searchSeed
             }
+            val speedMode = when {
+                state.slowNetworkMode && state.liteImagesEnabled -> QuickSpeedMode.ECO
+                state.slowNetworkMode -> QuickSpeedMode.BALANCED
+                else -> QuickSpeedMode.FAST
+            }
+            BottomSearchBar(
+                externalValue = bottomValue,
+                searchEngine = state.searchEngine,
+                enabled = !state.searching && !state.loading,
+                speedMode = speedMode,
+                onSpeedModeChange = { mode ->
+                    when (mode) {
+                        QuickSpeedMode.ECO -> {
+                            viewModel.setSlowNetworkMode(true)
+                            viewModel.setLiteImagesEnabled(true)
+                        }
+                        QuickSpeedMode.BALANCED -> {
+                            viewModel.setSlowNetworkMode(true)
+                            viewModel.setLiteImagesEnabled(false)
+                        }
+                        QuickSpeedMode.FAST -> {
+                            viewModel.setSlowNetworkMode(false)
+                            viewModel.setLiteImagesEnabled(false)
+                        }
+                    }
+                },
+                onSearch = viewModel::search,
+            )
         },
     ) { padding ->
         Column(
@@ -229,11 +254,6 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             }
 
             if (screen == AppScreen.READER || screen == AppScreen.FEED) {
-                ReaderUrlBar(
-                    externalUrl = urlSeed,
-                    loading = state.loading,
-                    onGo = viewModel::loadFromUrlBar,
-                )
                 state.cachedNotice?.let { notice ->
                     Card(
                         modifier = Modifier
@@ -325,6 +345,23 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         onService = viewModel::openService,
                         onOpenServiceSettings = viewModel::openServiceSettings,
                         slowNetworkMode = state.slowNetworkMode,
+                        liteImagesEnabled = state.liteImagesEnabled,
+                        onSpeedModeChange = { mode ->
+                            when (mode) {
+                                QuickSpeedMode.ECO -> {
+                                    viewModel.setSlowNetworkMode(true)
+                                    viewModel.setLiteImagesEnabled(true)
+                                }
+                                QuickSpeedMode.BALANCED -> {
+                                    viewModel.setSlowNetworkMode(true)
+                                    viewModel.setLiteImagesEnabled(false)
+                                }
+                                QuickSpeedMode.FAST -> {
+                                    viewModel.setSlowNetworkMode(false)
+                                    viewModel.setLiteImagesEnabled(false)
+                                }
+                            }
+                        },
                         offlineCache = state.offlineCacheEntries,
                         onOpenCached = viewModel::openCachedPage,
                     )

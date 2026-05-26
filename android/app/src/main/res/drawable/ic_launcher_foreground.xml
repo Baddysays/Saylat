@@ -6,10 +6,10 @@
     android:viewportHeight="108">
     <!-- Safe zone ~66dp: bowl + greens only, без подписи (название даёт лаунчер) -->
     <group
-        android:translateX="30"
-        android:translateY="28"
-        android:scaleX="2.05"
-        android:scaleY="2.05">
+        android:translateX="14.4"
+        android:translateY="14.4"
+        android:scaleX="1.65"
+        android:scaleY="1.65">
         <path
             android:fillColor="#FFFFFF"
             android:pathData="M10,28.5c0,0 3.2,9.2 14,9.2s14,-9.2 14,-9.2v-1.8H10v1.8z" />

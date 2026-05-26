@@ -24,8 +24,8 @@ android {
         applicationId = "com.baddysays.saylat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 36
-        versionName = "0.5.26"
+        versionCode = 37
+        versionName = "0.5.27"
         buildConfigField("String", "PUBLIC_SERVER_URL", saylatServerUrlField)
         buildConfigField("String", "PROXY_API_KEY", saylatApiKeyField)
         buildConfigField(

@@ -28,6 +28,8 @@ import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -76,6 +78,8 @@ fun HomeContent(
     onService: (String) -> Unit = {},
     onOpenServiceSettings: () -> Unit = {},
     slowNetworkMode: Boolean = false,
+    liteImagesEnabled: Boolean = false,
+    onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
     offlineCache: List<PageCache.CachedEntry> = emptyList(),
     onOpenCached: (String) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -87,6 +91,17 @@ fun HomeContent(
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         item { HomeHero(networkTestResult) }
+        item {
+            SpeedModeStrip(
+                modifier = pad.fillMaxWidth(),
+                selected = when {
+                    slowNetworkMode && liteImagesEnabled -> QuickSpeedMode.ECO
+                    slowNetworkMode -> QuickSpeedMode.BALANCED
+                    else -> QuickSpeedMode.FAST
+                },
+                onSelect = onSpeedModeChange,
+            )
+        }
         item {
             HomeServerStatusCard(
                 ready = serverReady,
@@ -220,6 +235,46 @@ fun HomeContent(
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
                 )
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SpeedModeStrip(
+    selected: QuickSpeedMode,
+    onSelect: (QuickSpeedMode) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp,
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Text("Скорость", fontWeight = FontWeight.SemiBold)
+            Text(
+                "Переключайте режим без захода в настройки",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+            )
+            FlowRow(
+                modifier = Modifier.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                QuickSpeedMode.entries.forEach { mode ->
+                    FilterChip(
+                        selected = selected == mode,
+                        onClick = { onSelect(mode) },
+                        label = { Text("${mode.title} · ${mode.subtitle}") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
+                        ),
+                    )
+                }
             }
         }
     }
