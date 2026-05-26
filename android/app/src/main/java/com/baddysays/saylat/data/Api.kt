@@ -77,26 +77,61 @@ object ApiFactory {
         .add(KotlinJsonAdapterFactory())
         .build()
 
+    private data class ClientKey(
+        val baseUrl: String,
+        val slowNetwork: Boolean,
+        val compressionLevel: String,
+        val apiKey: String,
+    )
+
+    @Volatile
+    private var cached: Pair<ClientKey, SaylatApi>? = null
+
     fun create(
         baseUrl: String,
         slowNetwork: Boolean = false,
         compressionLevel: String = CompressionLevel.MEDIUM,
         apiKey: String = "",
     ): SaylatApi {
-        val connectSec = if (slowNetwork) 60L else 30L
-        val readSec = if (slowNetwork) 180L else 90L
+        val key = ClientKey(
+            baseUrl = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/",
+            slowNetwork = slowNetwork,
+            compressionLevel = compressionLevel,
+            apiKey = apiKey.trim(),
+        )
+        synchronized(this) {
+            cached?.let { (existingKey, api) ->
+                if (existingKey == key) return api
+            }
+        }
+        val api = buildClient(key)
+        synchronized(this) {
+            cached = key to api
+        }
+        return api
+    }
+
+    fun invalidateCache() {
+        synchronized(this) {
+            cached = null
+        }
+    }
+
+    private fun buildClient(key: ClientKey): SaylatApi {
+        val connectSec = if (key.slowNetwork) 60L else 30L
+        val readSec = if (key.slowNetwork) 180L else 90L
+        // Server reads this in main.py (_extract_safe) when ?level= is omitted.
         val levelHeader = Interceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
-                    .header("X-Saylat-Level", compressionLevel)
+                    .header("X-Saylat-Level", key.compressionLevel)
                     .build(),
             )
         }
-        val key = apiKey.trim()
-        val apiKeyInterceptor = if (key.isEmpty()) null else Interceptor { chain ->
+        val apiKeyInterceptor = if (key.apiKey.isEmpty()) null else Interceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
-                    .header("X-API-Key", key)
+                    .header("X-API-Key", key.apiKey)
                     .build(),
             )
         }
@@ -108,9 +143,8 @@ object ApiFactory {
             .readTimeout(readSec, TimeUnit.SECONDS)
             .writeTimeout(connectSec, TimeUnit.SECONDS)
             .build()
-        val normalized = if (baseUrl.endsWith("/")) baseUrl else "$baseUrl/"
         return Retrofit.Builder()
-            .baseUrl(normalized)
+            .baseUrl(key.baseUrl)
             .client(client)
             .addConverterFactory(MoshiConverterFactory.create(moshi))
             .build()
