@@ -17,7 +17,6 @@ from pathlib import Path
 OWNER = "Baddysays"
 REPO = "Saylat"
 REPO_ID = "R_kgDOSnrE7Q"
-WELCOME_NUMBER = 1
 SCREENSHOT_MARKER = "home-speed-modes"
 
 
@@ -69,19 +68,34 @@ def gh_graphql(query: str) -> dict:
     return gh_graphql_input({"query": query})
 
 
-def load_welcome() -> tuple[str, str]:
+def load_welcome() -> tuple[str, str, str]:
     raw = Path("docs/github/DISCUSSIONS-WELCOME.md").read_text(encoding="utf-8")
     title_m = re.search(r"<!-- TITLE: (.+?) -->", raw)
+    cat_m = re.search(r"<!-- CATEGORY: (.+?) -->", raw)
     title = title_m.group(1).strip() if title_m else "Welcome"
+    category = cat_m.group(1).strip() if cat_m else "general"
     body = re.sub(r"<!--.*?-->\s*", "", raw, flags=re.S).strip()
-    return title, body
+    return title, body, category
 
 
-def get_discussion(number: int) -> dict | None:
-    try:
-        return gh_api("repos", f"{OWNER}/{REPO}/discussions/{number}")
-    except RuntimeError:
-        return None
+def find_discussion_by_title(title: str) -> dict | None:
+    proc = run(
+        [
+            "gh",
+            "api",
+            f"repos/{OWNER}/{REPO}/discussions",
+            "--paginate",
+            "--jq",
+            f'.[] | select(.title=={json.dumps(title)})',
+        ]
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(proc.stderr.strip() or "failed to list discussions")
+    for line in proc.stdout.splitlines():
+        line = line.strip()
+        if line:
+            return json.loads(line)
+    return None
 
 
 def update_with_pat(discussion_id: str, title: str, body: str) -> None:
@@ -97,16 +111,19 @@ def update_with_pat(discussion_id: str, title: str, body: str) -> None:
         "variables": {"id": discussion_id, "title": title, "body": body},
     }
     gh_graphql_input(payload, token=pat)
-    print(f"Updated discussion #{WELCOME_NUMBER} with DISCUSSION_PAT.")
+    print("Updated welcome discussion with DISCUSSION_PAT.")
 
 
-def create_discussion(title: str, body: str) -> str:
+def create_discussion(title: str, body: str, category_slug: str) -> str:
     cats = gh_graphql(
         "query { repository(owner: \"Baddysays\", name: \"Saylat\") {"
         " discussionCategories(first: 20) { nodes { id slug } } } }"
     )
     nodes = cats["data"]["repository"]["discussionCategories"]["nodes"]
-    cat_id = next((n["id"] for n in nodes if n["slug"] == "general"), nodes[0]["id"])
+    cat_id = next(
+        (n["id"] for n in nodes if n["slug"] == category_slug),
+        next((n["id"] for n in nodes if n["slug"] == "general"), nodes[0]["id"]),
+    )
 
     result = gh_graphql_input(
         {
@@ -144,16 +161,17 @@ def create_discussion(title: str, body: str) -> str:
 
 
 def main() -> int:
-    title, body = load_welcome()
-    existing = get_discussion(WELCOME_NUMBER)
+    title, body, category = load_welcome()
+    existing = find_discussion_by_title(title)
 
     if existing:
         url = existing["html_url"]
+        number = existing.get("number", "?")
         disc_body = existing.get("body") or ""
         node_id = existing.get("node_id") or ""
 
         if SCREENSHOT_MARKER in disc_body:
-            print(f"Discussion #{WELCOME_NUMBER} is up to date: {url}")
+            print(f"Welcome discussion #{number} is up to date: {url}")
             return 0
 
         if os.environ.get("DISCUSSION_PAT", "").strip() and node_id:
@@ -163,14 +181,14 @@ def main() -> int:
 
         print(
             f"::warning title=Welcome discussion needs a manual edit::"
-            f"Discussion #{WELCOME_NUMBER} has no screenshots. "
+            f"Discussion #{number} has no screenshots. "
             f"GITHUB_TOKEN cannot update discussions. "
             f"Edit {url} and paste from docs/github/DISCUSSIONS-WELCOME.md "
-            f"(or add repo secret DISCUSSION_PAT with repo scope to enable CI updates)."
+            f"(or delete it and re-run this workflow to recreate)."
         )
         return 0
 
-    create_discussion(title, body)
+    create_discussion(title, body, category)
     return 0
 
 
