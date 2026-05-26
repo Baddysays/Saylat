@@ -1,5 +1,6 @@
-# Creates welcome discussion or adds a comment with screenshots.
-# Note: GITHUB_TOKEN cannot call updateDiscussion (FORBIDDEN) ? only create + comments.
+# Creates welcome discussion #1 when missing; warns if body is stale (no PAT).
+# GITHUB_TOKEN: createDiscussion OK, updateDiscussion FORBIDDEN.
+# Optional secret DISCUSSION_PAT (classic PAT, repo scope) enables auto-update.
 name: Post welcome discussion
 
 on:
@@ -9,6 +10,7 @@ on:
     paths:
       - .github/workflows/post-welcome-discussion.yml
       - docs/github/DISCUSSIONS-WELCOME.md
+      - scripts/ci-sync-welcome-discussion.py
 
 permissions:
   contents: read
@@ -23,77 +25,5 @@ jobs:
       - name: Sync welcome discussion
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euxo pipefail
-          REPO_ID='R_kgDOSnrE7Q'
-
-          python3 <<'PY'
-          import re
-          from pathlib import Path
-
-          raw = Path("docs/github/DISCUSSIONS-WELCOME.md").read_text(encoding="utf-8")
-          title_m = re.search(r"<!-- TITLE: (.+?) -->", raw)
-          title = title_m.group(1).strip() if title_m else "Welcome"
-          body = re.sub(r"<!--.*?-->\s*", "", raw, flags=re.S).strip()
-          preview_m = re.search(
-              r"(## ??? ??? ????????\n\n(?:!\[.*?\]\(.*?\)\n?)+)",
-              body,
-              flags=re.S,
-          )
-          preview = preview_m.group(1).strip() if preview_m else ""
-          comment = (
-              "### ??????????: ????????? ??????????\n\n"
-              "?????? ????? ??????????? ? ? [README](https://github.com/Baddysays/Saylat#-???-???-????????). "
-              "???? ?????? Saylat:\n\n"
-              f"{preview}"
-          )
-          Path("welcome-title.txt").write_text(title, encoding="utf-8")
-          Path("welcome-body.md").write_text(body, encoding="utf-8")
-          Path("welcome-comment.md").write_text(comment, encoding="utf-8")
-          PY
-
-          TITLE="$(cat welcome-title.txt)"
-          BODY="$(cat welcome-body.md)"
-          COMMENT="$(cat welcome-comment.md)"
-
-          if gh api "repos/Baddysays/Saylat/discussions/1" >/dev/null 2>&1; then
-            url="$(gh api "repos/Baddysays/Saylat/discussions/1" --jq '.html_url')"
-            has_images="$(gh api "repos/Baddysays/Saylat/discussions/1" --jq '.body | contains("home-speed-modes")')"
-
-            if [ "$has_images" = "true" ]; then
-              echo "Discussion #1 already contains screenshots: $url"
-            else
-              gh api --method POST "repos/Baddysays/Saylat/discussions/1/comments" \
-                -f body="$COMMENT"
-              echo "Added screenshots comment to: $url"
-            fi
-            exit 0
-          fi
-
-          CAT_ID="$(gh api graphql -f query='
-            query {
-              repository(owner: "Baddysays", name: "Saylat") {
-                discussionCategories(first: 20) { nodes { id slug } }
-              }
-            }' --jq '.data.repository.discussionCategories.nodes[] | select(.slug=="general") | .id' | head -n1)"
-
-          result="$(gh api graphql \
-            -f query='mutation($repo: ID!, $cat: ID!, $title: String!, $body: String!) {
-              createDiscussion(input: {repositoryId: $repo, categoryId: $cat, title: $title, body: $body}) {
-                discussion { url id }
-              }
-            }' \
-            -f repo="$REPO_ID" \
-            -f cat="$CAT_ID" \
-            -f title="$TITLE" \
-            -f body="$BODY")"
-
-          url="$(echo "$result" | jq -r '.data.createDiscussion.discussion.url')"
-          disc_id="$(echo "$result" | jq -r '.data.createDiscussion.discussion.id')"
-          echo "Created: $url"
-
-          gh api graphql \
-            -f query='mutation($id: ID!) { pinDiscussion(input: {discussionId: $id}) { clientMutationId } }' \
-            -f id="$disc_id" \
-            && echo "Pinned." \
-            || echo "Pin manually: $url"
+          DISCUSSION_PAT: ${{ secrets.DISCUSSION_PAT }}
+        run: python3 scripts/ci-sync-welcome-discussion.py
