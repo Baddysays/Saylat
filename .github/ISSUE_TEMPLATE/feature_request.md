@@ -1,6 +1,6 @@
 ---
-name: Идея
-about: Предложить улучшение Saylat
+name: 💡 Идея
+about: Предложите улучшение — любая мысль полезна
 title: "[feat] "
 labels: enhancement
 ---
