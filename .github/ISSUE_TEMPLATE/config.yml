@@ -1,5 +1,11 @@
 blank_issues_enabled: false
 contact_links:
+  - name: Telegram — @baddysays
+    url: https://t.me/baddysays
+    about: Быстрый контакт по проекту и вопросам по Saylat
+  - name: Почта — hello@baddysays.ru
+    url: mailto:hello@baddysays.ru
+    about: Связаться по почте
   - name: Вопросы и обсуждения
     url: https://github.com/Baddysays/Saylat/discussions
     about: Общие вопросы по Saylat, настройке VPS и APK

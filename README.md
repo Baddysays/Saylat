@@ -13,7 +13,7 @@
 
 Привет! 👋 Это проект для тех, у кого интернет медленный, а телефон хочется использовать по-настоящему: сайты, Telegram, VK и почта — без лишних мегабайт.
 
-*by **baddysays*** · `com.baddysays.saylat`
+*by **baddysays*** · ✉️ [hello@baddysays.ru](mailto:hello@baddysays.ru) · 💬 [@baddysays](https://t.me/baddysays)
 
 ## 🚀 Возможности
 
@@ -79,6 +79,8 @@ docker compose up -d --build
 
 Будем рады любой помощи — от звезды ⭐ до кода.
 
+- ✉️ Почта: [hello@baddysays.ru](mailto:hello@baddysays.ru)
+- 💬 Telegram: [@baddysays](https://t.me/baddysays)
 - 💬 [Discussions](https://github.com/Baddysays/Saylat/discussions) — вопросы, идеи, «как настроить»
 - 🐛 [Issues](https://github.com/Baddysays/Saylat/issues) — ошибки
 - 🔧 Pull request — см. [CONTRIBUTING.md](CONTRIBUTING.md)
