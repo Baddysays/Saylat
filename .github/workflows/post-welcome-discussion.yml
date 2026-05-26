@@ -1,4 +1,4 @@
-# Creates pinned welcome post in Discussions (idempotent).
+# Creates welcome post in Discussions (idempotent).
 name: Post welcome discussion
 
 on:
@@ -7,11 +7,12 @@ on:
     branches: [main]
     paths:
       - .github/workflows/post-welcome-discussion.yml
+      - scripts/ci-post-welcome-discussion.sh
       - docs/github/DISCUSSIONS-WELCOME.md
 
 permissions:
-  discussions: write
   contents: read
+  discussions: write
 
 jobs:
   welcome:
@@ -22,37 +23,4 @@ jobs:
       - name: Create welcome discussion if missing
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          set -euo pipefail
-          TITLE='Добро пожаловать в Saylat — с чего начать'
-
-          if gh api "repos/Baddysays/Saylat/discussions" --paginate \
-            --jq ".[] | select(.title==\"$TITLE\") | .number" | grep -q .; then
-            echo "Welcome discussion already exists."
-            exit 0
-          fi
-
-          BODY=$(python3 <<'PY'
-          import re
-          text = open("docs/github/DISCUSSIONS-WELCOME.md", encoding="utf-8").read()
-          text = re.sub(r"<!--.*?-->\s*", "", text, flags=re.S)
-          print(text.strip())
-          PY
-          )
-
-          CAT_ID=$(gh api repos/Baddysays/Saylat/discussions/categories \
-            --jq '.[] | select(.slug=="general") | .id' | head -n1)
-          if [ -z "$CAT_ID" ]; then
-            CAT_ID=$(gh api repos/Baddysays/Saylat/discussions/categories --jq '.[0].id')
-          fi
-
-          resp=$(gh api --method POST repos/Baddysays/Saylat/discussions \
-            -f title="$TITLE" \
-            -f body="$BODY" \
-            -F category_id="$CAT_ID")
-
-          echo "$resp" | jq -r '.html_url'
-          NODE_ID=$(echo "$resp" | jq -r '.node_id')
-
-          gh api graphql -f query='mutation($id: ID!) { pinDiscussion(input: {discussionId: $id}) { clientMutationId } }' \
-            -f id="$NODE_ID" || echo "Pin skipped (needs maintainer — pin manually in UI)"
+        run: bash scripts/ci-post-welcome-discussion.sh
