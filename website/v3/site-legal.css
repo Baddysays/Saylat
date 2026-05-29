@@ -1,0 +1,43 @@
+.site-footer{
+  padding:28px 0 40px;
+  border-top:1px solid var(--line);
+  margin-top:8px;
+}
+.legal-disclaimer{
+  max-width:720px;
+  margin:0 auto 18px;
+  padding:14px 16px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:var(--surface);
+  color:var(--muted);
+  font-size:13px;
+  line-height:1.6;
+}
+.legal-disclaimer a{color:var(--link)}
+.footer-owner{
+  margin:0 0 10px;
+  text-align:center;
+  color:var(--text);
+  font-size:14px;
+  line-height:1.6;
+}
+.footer-line{
+  margin:0;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.6;
+  text-align:center;
+}
+.footer-line a{color:var(--muted);text-decoration:none}
+.footer-line a:hover{color:var(--text);text-decoration:underline}
+.footer-sep{margin:0 6px;opacity:.55}
+.legal-page{max-width:720px;margin:0 auto;padding:32px 0 48px}
+.legal-page h1{font-size:clamp(28px,4vw,36px);margin:0 0 8px}
+.legal-page .legal-updated{color:var(--muted);font-size:14px;margin:0 0 24px}
+.legal-page h2{font-size:20px;margin:28px 0 10px}
+.legal-page p,.legal-page li{color:var(--muted);font-size:15px;line-height:1.65}
+.legal-page ul{margin:0 0 12px;padding-left:20px}
+.legal-page a{color:var(--link)}
+.legal-back{display:inline-block;margin-bottom:20px;color:var(--link);text-decoration:none;font-size:14px}
+.legal-back:hover{text-decoration:underline}

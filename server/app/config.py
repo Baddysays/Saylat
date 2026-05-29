@@ -20,10 +20,16 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 45
-    app_version_name: str = "0.5.35"
+    app_version_code: int = 46
+    app_version_name: str = "0.5.36"
     app_release_notes: str = (
-        "0.5.35: приветствие можно закрыть без адреса сервера — UI снова отвечает на касания."
+        "0.5.36 — что нового:\n\n"
+        "• Лента «Все ленты» — кнопка «Показать ещё», подгружает по частям\n"
+        "• На главной — недавно открытые страницы (история)\n"
+        "• Нет интернета — заметная полоска сверху, офлайн-кэш по-прежнему работает\n"
+        "• В читалке — «Поделиться» ссылкой\n"
+        "• Картинки: крутилка при загрузке и понятная подпись, если не загрузилось\n"
+        "• При обрыве сети запросы иногда повторяются сами — реже «ошибка с первого раза»"
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"
@@ -40,6 +46,11 @@ class Settings(BaseSettings):
     # Защита личного VPS (пусто = без ключа)
     api_key: str = ""
     rate_limit_per_minute: int = 120
+    # Через запятую: https://saylat.baddysays.ru,http://127.0.0.1:8787. Пусто = CORS отключён (нативный APK).
+    cors_origins: str = ""
+
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
 
     # Playwright — скриншот-полосы (Opera Mini)
     playwright_enabled: bool = True

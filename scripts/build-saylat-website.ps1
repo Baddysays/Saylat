@@ -15,6 +15,11 @@ New-Item -ItemType Directory -Force -Path $AssetsDist | Out-Null
 New-Item -ItemType Directory -Force -Path (Join-Path $AssetsDist "screenshots") | Out-Null
 
 Copy-Item $SrcHtml (Join-Path $Dist "index.html") -Force
+Copy-Item (Join-Path $Root "website\v3\site-legal.css") $Dist -Force
+$PrivacySrc = Join-Path $Root "website\v3\privacy"
+$PrivacyDist = Join-Path $Dist "privacy"
+New-Item -ItemType Directory -Force -Path $PrivacyDist | Out-Null
+Copy-Item (Join-Path $PrivacySrc "index.html") (Join-Path $PrivacyDist "index.html") -Force
 Copy-Item (Join-Path $AssetsSrc "saylat-logo.png") $AssetsDist -Force
 Copy-Item (Join-Path $AssetsSrc "logo-kit\reference\saylat-icon-512.png") (Join-Path $AssetsDist "favicon.png") -Force
 
@@ -34,5 +39,5 @@ foreach ($name in $shots) {
 }
 
 Write-Host "OK: $Dist"
-Write-Host "  index.html + assets/ ($($shots.Count) screenshots)"
+Write-Host "  index.html, privacy/, site-legal.css + assets/ ($($shots.Count) screenshots)"
 Write-Host "Локально: cd website\dist; python -m http.server 8790"

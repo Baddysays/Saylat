@@ -50,6 +50,7 @@ import com.baddysays.saylat.engine.RenderCard
 fun BrowserScreen(viewModel: BrowserViewModel) {
     val screen by viewModel.screen.collectAsState()
     val state by viewModel.state.collectAsState()
+    val readerUi by viewModel.readerUi.collectAsState()
     val searchSeed by viewModel.searchInput.collectAsState()
     val urlSeed by viewModel.urlInput.collectAsState()
     val currentFavoriteUrl = remember(state.article, state.stripPage, state.webViewUrl, urlSeed) {
@@ -90,6 +91,7 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             SaylatTopBar(
                 screen = screen,
                 activeQuery = state.activeSearchQuery,
+                networkOnline = state.networkOnline,
                 onBack = when (screen) {
                     AppScreen.SEARCH_RESULTS -> viewModel::backFromSearch
                     AppScreen.READER -> viewModel::backFromReader
@@ -112,6 +114,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                 isFavorite = isFavorite,
                 onToggleFavorite = viewModel::toggleFavoriteForCurrentPage,
                 onPinShortcut = viewModel::pinCurrentPageShortcut,
+                showShare = screen == AppScreen.READER && currentFavoriteUrl != null,
+                onShare = viewModel::shareCurrentPage,
             )
         },
         bottomBar = {
@@ -282,6 +286,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         liteImagesEnabled = state.liteImagesEnabled,
                         onSpeedModeChange = viewModel::setQuickSpeedMode,
                         favorites = state.favoriteLinks,
+                        visitHistory = state.visitHistory,
+                        onOpenVisit = viewModel::openFavorite,
                         onOpenFavorite = viewModel::openFavorite,
                         onRemoveFavorite = viewModel::removeFavorite,
                         onPinFavorite = viewModel::pinFavoriteShortcut,
@@ -295,18 +301,18 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         onOpen = viewModel::openSearchResult,
                     )
                     AppScreen.READER -> {
-                        val webUrl = state.webViewUrl
+                        val webUrl = readerUi.webViewUrl
                         when {
                             webUrl != null -> SiteWebView(
                                 pageUrl = webUrl,
                                 onExternalUrl = viewModel::openLinkFromWebView,
                             )
-                            state.stripPage != null || state.readerMode == com.baddysays.saylat.prefs.ReaderMode.STRIPS -> {
+                            readerUi.stripPage != null || readerUi.readerMode == com.baddysays.saylat.prefs.ReaderMode.STRIPS -> {
                                 StripReaderScreen(
-                                    loading = state.loading,
-                                    stripPage = state.stripPage,
+                                    loading = readerUi.loading,
+                                    stripPage = readerUi.stripPage,
                                     pageUrl = urlSeed,
-                                    fromCache = state.cachedNotice != null,
+                                    fromCache = readerUi.cachedNotice != null,
                                     saveInProgress = state.savingGallery,
                                     saveMessage = state.gallerySaveMessage,
                                     onSaveStrips = viewModel::saveCurrentPageToGallery,
@@ -315,10 +321,10 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                 )
                             }
                             else -> ReaderBody(
-                                loading = state.loading,
-                                translating = state.translating,
-                                article = state.article,
-                                plan = state.plan,
+                                loading = readerUi.loading,
+                                translating = readerUi.translating,
+                                article = readerUi.article,
+                                plan = readerUi.plan,
                                 showStatsCards = true,
                                 onLinkClick = viewModel::openLink,
                                 onLoadFull = { viewModel.reloadWithMode(com.baddysays.saylat.prefs.ReaderMode.LAYOUT) },
@@ -343,6 +349,9 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                                 onOpenLink = viewModel::openLink,
                                 onReplyItem = viewModel::prepareFeedReply,
                                 onOpenServiceSettings = viewModel::openServiceSettings,
+                                hasMore = feed.has_more,
+                                loadingMore = state.feedLoadingMore,
+                                onLoadMore = viewModel::loadMoreFeed,
                             )
                         }
                     }

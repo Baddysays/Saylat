@@ -9,13 +9,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +37,9 @@ fun FeedScreen(
     onOpenLink: (String) -> Unit,
     onReplyItem: ((FeedItem) -> Unit)? = null,
     onOpenServiceSettings: (() -> Unit)? = null,
+    hasMore: Boolean = false,
+    loadingMore: Boolean = false,
+    onLoadMore: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -79,6 +82,23 @@ fun FeedScreen(
                     null
                 },
             )
+        }
+        if (hasMore) {
+            item {
+                FilledTonalButton(
+                    onClick = { onLoadMore?.invoke() },
+                    enabled = !loadingMore,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (loadingMore) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.padding(end = 8.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    }
+                    Text(if (loadingMore) "Загрузка…" else "Показать ещё")
+                }
+            }
         }
     }
 }
@@ -144,14 +164,14 @@ private fun FeedItemCard(
                         .crossfade(false)
                         .build()
                 }
-                AsyncImage(
+                SaylatRemoteImage(
                     model = request,
                     contentDescription = null,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp)
                         .clip(RoundedCornerShape(12.dp)),
                     contentScale = ContentScale.Crop,
+                    placeholderHeight = 120,
                 )
             }
             item.from?.takeIf { it.isNotBlank() }?.let {

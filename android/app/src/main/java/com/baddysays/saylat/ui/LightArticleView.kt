@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.baddysays.saylat.data.SaylatArticle
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -135,10 +134,10 @@ fun LightArticleView(
         }
         article.blocks.filter { it.type == "image" && !it.src.isNullOrBlank() }.forEach { img ->
             item {
-                AsyncImage(
+                SaylatRemoteImage(
                     model = img.src,
                     contentDescription = img.alt,
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.fillMaxWidth(),
                     contentScale = ContentScale.FillWidth,
                 )
             }

@@ -74,12 +74,14 @@ app = FastAPI(
     lifespan=_app_lifespan,
 )
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["GET", "POST", "PUT"],
-    allow_headers=["*"],
-)
+_cors_origins = settings.cors_origin_list()
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_methods=["GET", "POST", "PUT"],
+        allow_headers=["*"],
+    )
 app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
 app.add_middleware(ApiKeyMiddleware)
 
@@ -164,9 +166,11 @@ async def thin_open(body: OpenRequest) -> OpenResponse:
 @app.get("/api/feed", response_model=SaylatFeed)
 async def unified_feed_get(
     limit: int = Query(12, ge=1, le=40, description="Элементов с каждого источника"),
+    offset: int = Query(0, ge=0, le=500, description="Смещение в объединённой ленте"),
+    page_size: int = Query(24, ge=1, le=80, description="Размер страницы ленты"),
 ) -> SaylatFeed:
     try:
-        return await build_unified_feed(per_source=limit)
+        return await build_unified_feed(per_source=limit, offset=offset, limit=page_size)
     except HTTPException:
         raise
     except Exception as exc:

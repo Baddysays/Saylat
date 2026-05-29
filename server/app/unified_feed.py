@@ -11,7 +11,12 @@ from .credentials_store import mail_is_configured, telegram_has_api_keys, vk_is_
 from .models import FeedItem, FeedStats, SaylatFeed
 
 
-async def build_unified_feed(*, per_source: int = 12) -> SaylatFeed:
+async def build_unified_feed(
+    *,
+    per_source: int = 12,
+    offset: int = 0,
+    limit: int = 24,
+) -> SaylatFeed:
     started = time.perf_counter()
     merged: list[FeedItem] = []
     notes: list[str] = []
@@ -103,11 +108,17 @@ async def build_unified_feed(*, per_source: int = 12) -> SaylatFeed:
             )
         )
 
+    total = len(merged)
+    safe_offset = max(0, offset)
+    safe_limit = max(1, min(limit, 80))
+    page = merged[safe_offset : safe_offset + safe_limit]
     ms = int((time.perf_counter() - started) * 1000)
     return SaylatFeed(
         source="unified",
         title="Все ленты",
         subtitle="Telegram · VK · почта",
-        items=merged,
+        items=page,
         stats=FeedStats(fetch_ms=ms),
+        has_more=safe_offset + safe_limit < total,
+        total_items=total,
     )

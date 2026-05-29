@@ -1,6 +1,7 @@
 package com.baddysays.saylat.ui
 
 import android.content.Context
+import android.content.Intent
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.baddysays.saylat.BuildConfig
@@ -40,6 +41,7 @@ import com.baddysays.saylat.search.SearchRepository
 import com.baddysays.saylat.translate.ArticleTranslator
 import com.baddysays.saylat.update.AppUpdateManager
 import com.baddysays.saylat.update.UpdateCheckResult
+import com.baddysays.saylat.network.ConnectivityMonitor
 import com.baddysays.saylat.network.NetworkDiagnostics
 import com.baddysays.saylat.network.NetworkTestResult
 import com.baddysays.saylat.network.SpeedProfile
@@ -108,6 +110,9 @@ data class BrowserUiState(
     val whatsNewNotes: String = "",
     val favoriteLinks: List<SaylatPrefs.FavoriteLink> = emptyList(),
     val feed: SaylatFeed? = null,
+    val feedLoadingMore: Boolean = false,
+    val visitHistory: List<SaylatPrefs.VisitEntry> = emptyList(),
+    val networkOnline: Boolean = true,
     val readerMode: ReaderMode = ReaderMode.LAYOUT,
     val cachedNotice: String? = null,
     val offlineCacheEntries: List<PageCache.CachedEntry> = emptyList(),
@@ -148,6 +153,7 @@ class BrowserViewModel(
 
     private val appContext = appContext.applicationContext
     private val appUpdateManager = AppUpdateManager(appContext)
+    private val connectivityMonitor = ConnectivityMonitor(appContext)
     private var layoutLabCache: LayoutLabComparison? = null
 
     companion object {
@@ -170,6 +176,11 @@ class BrowserViewModel(
         .map { it.screen }
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppScreen.HOME)
+
+    val readerUi: StateFlow<ReaderUiState> = state
+        .map { it.toReaderUi() }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ReaderUiState())
 
     private val _searchInput = MutableStateFlow("")
     val searchInput: StateFlow<String> = _searchInput.asStateFlow()
@@ -200,75 +211,31 @@ class BrowserViewModel(
             checkForUpdateSilently()
         }
         viewModelScope.launch {
-            prefs.slowNetworkMode.collect { enabled ->
-                if (enabled != null) {
-                    _state.value = _state.value.copy(slowNetworkMode = enabled)
-                }
+            prefs.settingsBundle.collect { bundle ->
+                val slow = bundle.slowNetworkMode
+                    ?: DeviceCapabilities.shouldDefaultSlowNetwork(appContext)
+                _state.value = _state.value.copy(
+                    slowNetworkMode = slow,
+                    liteImagesEnabled = bundle.liteImagesEnabled,
+                    serverUrl = bundle.serverUrl,
+                    favoriteLinks = bundle.favoriteLinks,
+                    smartLayoutEnabled = bundle.smartLayoutEnabled,
+                    searchEngine = bundle.searchEngine,
+                    searxInstanceUrl = bundle.searxInstanceUrl,
+                    recentSearches = bundle.recentSearches,
+                    translateTargetLang = bundle.translateTargetLang,
+                    appTheme = bundle.appTheme,
+                    showPageLoadStats = bundle.pageLoadStatsEnabled,
+                    readerMode = bundle.readerMode,
+                    dismissedReaderBanners = bundle.dismissedReaderBanners,
+                    customServerEnabled = bundle.customServerEnabled,
+                    visitHistory = bundle.visitHistory,
+                )
             }
         }
         viewModelScope.launch {
-            prefs.liteImagesEnabled.collect { enabled ->
-                _state.value = _state.value.copy(liteImagesEnabled = enabled)
-            }
-        }
-        viewModelScope.launch {
-            prefs.baseUrl.collect { url ->
-                _state.value = _state.value.copy(serverUrl = url)
-            }
-        }
-        viewModelScope.launch {
-            prefs.favoriteLinks.collect { links ->
-                _state.value = _state.value.copy(favoriteLinks = links)
-            }
-        }
-        viewModelScope.launch {
-            prefs.smartLayoutEnabled.collect { enabled ->
-                _state.value = _state.value.copy(smartLayoutEnabled = enabled)
-            }
-        }
-        viewModelScope.launch {
-            prefs.searchEngineId.collect { id ->
-                _state.value = _state.value.copy(searchEngine = SearchEngine.fromId(id))
-            }
-        }
-        viewModelScope.launch {
-            prefs.searxInstanceUrl.collect { url ->
-                _state.value = _state.value.copy(searxInstanceUrl = url)
-            }
-        }
-        viewModelScope.launch {
-            prefs.recentSearches.collect { recent ->
-                _state.value = _state.value.copy(recentSearches = recent)
-            }
-        }
-        viewModelScope.launch {
-            prefs.translateTargetLang.collect { lang ->
-                _state.value = _state.value.copy(translateTargetLang = lang)
-            }
-        }
-        viewModelScope.launch {
-            prefs.appThemeId.collect { theme ->
-                _state.value = _state.value.copy(appTheme = theme)
-            }
-        }
-        viewModelScope.launch {
-            prefs.pageLoadStatsEnabled.collect { enabled ->
-                _state.value = _state.value.copy(showPageLoadStats = enabled)
-            }
-        }
-        viewModelScope.launch {
-            prefs.readerMode.collect { mode ->
-                _state.value = _state.value.copy(readerMode = mode)
-            }
-        }
-        viewModelScope.launch {
-            prefs.dismissedReaderBanners.collect { dismissed ->
-                _state.value = _state.value.copy(dismissedReaderBanners = dismissed)
-            }
-        }
-        viewModelScope.launch {
-            prefs.customServerEnabled.collect { enabled ->
-                _state.value = _state.value.copy(customServerEnabled = enabled)
+            connectivityMonitor.isOnline.collect { online ->
+                _state.value = _state.value.copy(networkOnline = online)
             }
         }
         refreshConnectStatus()
@@ -530,6 +497,62 @@ class BrowserViewModel(
         }
     }
 
+    fun loadMoreFeed() {
+        val current = _state.value.feed ?: return
+        if (!current.has_more || _state.value.feedLoadingMore) return
+        viewModelScope.launch {
+            _state.value = _state.value.copy(feedLoadingMore = true, error = null)
+            try {
+                val offset = current.items.size
+                val page = api().unifiedFeed(limit = 12, offset = offset, pageSize = 24)
+                _state.value = _state.value.copy(
+                    feedLoadingMore = false,
+                    feed = current.copy(
+                        items = current.items + page.items,
+                        has_more = page.has_more,
+                        total_items = page.total_items,
+                    ),
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    feedLoadingMore = false,
+                    error = UserFacingErrors.from(e),
+                )
+            }
+        }
+    }
+
+    fun shareCurrentPage() {
+        val url = currentPageUrl() ?: return
+        val intent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_TEXT, url)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        appContext.startActivity(
+            Intent.createChooser(intent, "Поделиться ссылкой").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    }
+
+    private fun currentPageUrl(): String? {
+        val s = _state.value
+        return when {
+            !s.article?.url.isNullOrBlank() -> s.article?.url
+            !s.stripPage?.url.isNullOrBlank() -> s.stripPage?.url
+            !s.webViewUrl.isNullOrBlank() -> s.webViewUrl
+            _urlInput.value.startsWith("http://") || _urlInput.value.startsWith("https://") -> _urlInput.value
+            else -> null
+        }
+    }
+
+    private fun recordVisit(url: String, title: String) {
+        viewModelScope.launch {
+            prefs.recordVisit(url, title)
+        }
+    }
+
     fun openUnifiedInbox() {
         viewModelScope.launch {
             _state.value = _state.value.copy(
@@ -539,10 +562,11 @@ class BrowserViewModel(
                 feed = null,
             )
             try {
-                val feed = api().unifiedFeed(limit = 12)
+                val feed = api().unifiedFeed(limit = 12, offset = 0, pageSize = 24)
                 _state.value = _state.value.copy(
                     loading = false,
                     feed = feed,
+                    feedLoadingMore = false,
                     screen = AppScreen.FEED,
                 )
             } catch (e: Exception) {
@@ -1139,6 +1163,7 @@ class BrowserViewModel(
             )
             withContext(Dispatchers.IO) { PageCache.putArticle(appContext, article) }
             refreshOfflineCache()
+            recordVisit(article.url, article.title)
             return
         }
 
@@ -1174,6 +1199,7 @@ class BrowserViewModel(
             PageCache.putArticle(appContext, article)
         }
         refreshOfflineCache()
+        recordVisit(article.url, article.title)
     }
 
     private suspend fun effectiveReaderMode(): ReaderMode =
@@ -1544,6 +1570,7 @@ class BrowserViewModel(
                     fetch_ms = page.stats.fetch_ms,
                 ),
             )
+            recordVisit(url, page.title.ifBlank { url })
         } catch (e: Exception) {
             val cached = withContext(Dispatchers.IO) { PageCache.loadStripPage(appContext, url) }
             if (cached != null) {
@@ -1569,6 +1596,7 @@ class BrowserViewModel(
     private suspend fun loadWebView(url: String, keepFeedParent: Boolean) {
         originalArticle = null
         val parentFeed = if (keepFeedParent) _state.value.feed else null
+        recordVisit(url, url)
         _state.value = _state.value.copy(
             screen = AppScreen.READER,
             loading = false,

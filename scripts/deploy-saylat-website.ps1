@@ -28,7 +28,7 @@ $CertPath = "/www/server/panel/vhost/cert/saylat.baddysays.ru/fullchain.pem"
 
 ssh $Remote "mkdir -p $RemoteRoot"
 scp -r "$Dist\*" "${Remote}:${RemoteRoot}/"
-ssh $Remote "chmod -R a+rX $RemoteRoot/assets"
+ssh $Remote "chmod -R a+rX $RemoteRoot/assets $RemoteRoot/privacy 2>/dev/null; chmod a+r $RemoteRoot/site-legal.css 2>/dev/null"
 
 $hasCert = ssh $Remote "test -f $CertPath && echo yes || echo no"
 if ($hasCert.Trim() -eq "yes") {

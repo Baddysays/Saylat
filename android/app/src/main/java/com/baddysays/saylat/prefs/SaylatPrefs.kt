@@ -20,6 +20,12 @@ class SaylatPrefs(private val context: Context) {
         val url: String,
     )
 
+    data class VisitEntry(
+        val url: String,
+        val title: String,
+        val visitedAt: Long,
+    )
+
     private val serverKey = stringPreferencesKey("server_base_url")
     private val smartLayoutKey = booleanPreferencesKey("smart_layout_enabled")
     private val searchEngineKey = stringPreferencesKey("search_engine_id")
@@ -36,6 +42,7 @@ class SaylatPrefs(private val context: Context) {
     private val lastSeenVersionKey = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
     private val onboardingDoneKey = booleanPreferencesKey("onboarding_done")
     private val customServerKey = booleanPreferencesKey("custom_server_enabled")
+    private val visitHistoryKey = stringPreferencesKey("visit_history")
 
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[serverKey] ?: defaultProxyUrl()
@@ -101,6 +108,49 @@ class SaylatPrefs(private val context: Context) {
         prefs[customServerKey] ?: false
     }
 
+    val visitHistory: Flow<List<VisitEntry>> = context.dataStore.data.map { prefs ->
+        decodeVisits(prefs[visitHistoryKey])
+    }
+
+    /** Атомарный снимок настроек — без гонок между отдельными collect. */
+    data class SettingsBundle(
+        val slowNetworkMode: Boolean?,
+        val liteImagesEnabled: Boolean,
+        val serverUrl: String,
+        val favoriteLinks: List<FavoriteLink>,
+        val smartLayoutEnabled: Boolean,
+        val searchEngine: SearchEngine,
+        val searxInstanceUrl: String,
+        val recentSearches: List<String>,
+        val translateTargetLang: String,
+        val appTheme: AppThemeId,
+        val pageLoadStatsEnabled: Boolean,
+        val readerMode: ReaderMode,
+        val dismissedReaderBanners: Set<String>,
+        val customServerEnabled: Boolean,
+        val visitHistory: List<VisitEntry>,
+    )
+
+    val settingsBundle: Flow<SettingsBundle> = context.dataStore.data.map { prefs ->
+        SettingsBundle(
+            slowNetworkMode = prefs[slowNetworkKey],
+            liteImagesEnabled = prefs[liteImagesKey] ?: false,
+            serverUrl = prefs[serverKey] ?: defaultProxyUrl(),
+            favoriteLinks = decodeFavorites(prefs[favoritesKey]),
+            smartLayoutEnabled = prefs[smartLayoutKey] ?: false,
+            searchEngine = SearchEngine.fromId(prefs[searchEngineKey] ?: SearchEngine.SEARXNG.id),
+            searxInstanceUrl = prefs[searxInstanceKey] ?: DEFAULT_SEARX_INSTANCE,
+            recentSearches = decodeRecent(prefs[recentSearchesKey]),
+            translateTargetLang = prefs[translateTargetKey] ?: DEFAULT_TRANSLATE_TARGET,
+            appTheme = AppThemeId.fromId(prefs[appThemeKey]),
+            pageLoadStatsEnabled = prefs[pageLoadStatsKey] ?: true,
+            readerMode = ReaderMode.fromId(prefs[readerModeKey]),
+            dismissedReaderBanners = decodeSet(prefs[dismissedBannersKey]),
+            customServerEnabled = prefs[customServerKey] ?: false,
+            visitHistory = decodeVisits(prefs[visitHistoryKey]),
+        )
+    }
+
     suspend fun setBaseUrl(url: String) {
         context.dataStore.edit { it[serverKey] = url.trim() }
     }
@@ -129,6 +179,22 @@ class SaylatPrefs(private val context: Context) {
 
     suspend fun clearRecentSearches() {
         context.dataStore.edit { it.remove(recentSearchesKey) }
+    }
+
+    suspend fun recordVisit(url: String, title: String) {
+        val normalized = url.trim()
+        if (!normalized.startsWith("http")) return
+        val label = title.trim().ifBlank { normalized }
+        context.dataStore.edit { prefs ->
+            val current = decodeVisits(prefs[visitHistoryKey])
+            val updated = listOf(VisitEntry(normalized, label, System.currentTimeMillis())) +
+                current.filter { it.url != normalized }
+            prefs[visitHistoryKey] = encodeVisits(updated.take(MAX_VISITS))
+        }
+    }
+
+    suspend fun clearVisitHistory() {
+        context.dataStore.edit { it.remove(visitHistoryKey) }
     }
 
     suspend fun upsertFavorite(link: FavoriteLink) {
@@ -259,6 +325,7 @@ class SaylatPrefs(private val context: Context) {
         const val DEFAULT_SEARX_INSTANCE = "https://searx.tiekoetter.com"
         private const val MAX_RECENT = 8
         private const val MAX_FAVORITES = 10
+        private const val MAX_VISITS = 50
         private const val RECENT_SEP = "\u001E"
         private const val FIELD_SEP = "\u001F"
 
@@ -288,5 +355,22 @@ class SaylatPrefs(private val context: Context) {
 
         private fun encodeSet(items: Set<String>): String =
             items.joinToString(RECENT_SEP)
+
+        private fun decodeVisits(raw: String?): List<VisitEntry> =
+            raw?.split(RECENT_SEP)
+                ?.mapNotNull { row ->
+                    val parts = row.split(FIELD_SEP)
+                    val url = parts.getOrNull(0)?.trim().orEmpty()
+                    if (url.isBlank()) return@mapNotNull null
+                    val title = parts.getOrNull(1)?.trim().orEmpty().ifBlank { url }
+                    val at = parts.getOrNull(2)?.toLongOrNull() ?: 0L
+                    VisitEntry(url = url, title = title, visitedAt = at)
+                }
+                ?: emptyList()
+
+        private fun encodeVisits(items: List<VisitEntry>): String =
+            items.joinToString(RECENT_SEP) { entry ->
+                "${entry.url}$FIELD_SEP${entry.title.replace(FIELD_SEP, " ")}$FIELD_SEP${entry.visitedAt}"
+            }
     }
 }

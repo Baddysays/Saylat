@@ -39,16 +39,27 @@ try {
     }
 
     $apkUrl = "https://github.com/Baddysays/Saylat/releases/download/$Tag/saylat.apk"
-    $notes = "Saylat $versionName. App updates via GitHub; proxy on your own server."
+    $existingNotes = ""
+    if (Test-Path $UpdateJson) {
+        try {
+            $prev = Get-Content $UpdateJson -Raw -Encoding UTF8 | ConvertFrom-Json
+            if ($prev.release_notes) { $existingNotes = [string]$prev.release_notes }
+        } catch { }
+    }
+    if (-not $existingNotes) {
+        $existingNotes = "Saylat $versionName — обновление приложения."
+    }
+    $notes = $existingNotes
     $meta = @{
         version_code = $versionCode
         version_name = $versionName
         apk_url = $apkUrl
-        release_notes = "Updates from GitHub. Saylat proxy stays on your VPS."
+        release_notes = $existingNotes
         mandatory = $false
     } | ConvertTo-Json -Compress
     New-Item -ItemType Directory -Force -Path (Split-Path $UpdateJson) | Out-Null
-    Set-Content -Path $UpdateJson -Value $meta -Encoding UTF8
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($UpdateJson, $meta, $utf8NoBom)
 
     Write-Host "Tag: $Tag  ($versionName / $versionCode)"
     Write-Host "update.json -> $apkUrl"

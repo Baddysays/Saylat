@@ -162,6 +162,8 @@ class SaylatFeed(BaseModel):
     context_id: str = ""
     items: list[FeedItem] = Field(default_factory=list)
     stats: FeedStats = Field(default_factory=FeedStats)
+    has_more: bool = False
+    total_items: int = 0
 
 
 OpenTarget = Literal["url", "mail", "telegram", "vk", "dzen"]

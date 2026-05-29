@@ -11,6 +11,8 @@ data class SaylatFeed(
     val context_id: String = "",
     val items: List<FeedItem> = emptyList(),
     val stats: FeedStats = FeedStats(),
+    val has_more: Boolean = false,
+    val total_items: Int = 0,
 )
 
 @JsonClass(generateAdapter = true)

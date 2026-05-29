@@ -45,6 +45,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         super().__init__(app)
         self._limit = max(10, limit_per_minute)
         self._hits: dict[str, list[float]] = defaultdict(list)
+        self._last_seen: dict[str, float] = {}
+        self._window_sec = 60.0
+        self._idle_sec = 300.0
 
     def _client_ip(self, request: Request) -> str:
         forwarded = request.headers.get("x-forwarded-for", "").split(",")[0].strip()
@@ -59,8 +62,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
         now = time.monotonic()
         ip = self._client_ip(request)
+        self._prune_stale_ips(now)
         window = self._hits[ip]
-        window[:] = [t for t in window if now - t < 60.0]
+        self._last_seen[ip] = now
+        window[:] = [t for t in window if now - t < self._window_sec]
         if len(window) >= self._limit:
             return JSONResponse(
                 status_code=429,
@@ -68,3 +73,19 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             )
         window.append(now)
         return await call_next(request)
+
+    def _prune_stale_ips(self, now: float) -> None:
+        stale = [
+            ip
+            for ip, seen in self._last_seen.items()
+            if now - seen > self._idle_sec and ip not in self._hits
+        ]
+        for ip in stale:
+            self._last_seen.pop(ip, None)
+            self._hits.pop(ip, None)
+        if len(self._hits) <= 5000:
+            return
+        oldest = sorted(self._last_seen.items(), key=lambda item: item[1])[: len(self._hits) - 4000]
+        for ip, _ in oldest:
+            self._last_seen.pop(ip, None)
+            self._hits.pop(ip, None)

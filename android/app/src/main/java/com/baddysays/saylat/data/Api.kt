@@ -1,5 +1,6 @@
 package com.baddysays.saylat.data
 
+import com.baddysays.saylat.network.RetryInterceptor
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import okhttp3.Interceptor
@@ -69,6 +70,8 @@ interface SaylatApi {
     @GET("api/feed")
     suspend fun unifiedFeed(
         @Query("limit") limit: Int = 12,
+        @Query("offset") offset: Int = 0,
+        @Query("page_size") pageSize: Int = 24,
     ): SaylatFeed
 }
 
@@ -136,6 +139,7 @@ object ApiFactory {
             )
         }
         val clientBuilder = OkHttpClient.Builder()
+            .addInterceptor(RetryInterceptor())
             .addInterceptor(levelHeader)
         apiKeyInterceptor?.let { clientBuilder.addInterceptor(it) }
         val client = clientBuilder

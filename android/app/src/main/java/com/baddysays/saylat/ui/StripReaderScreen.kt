@@ -31,7 +31,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.baddysays.saylat.data.StripPage
 
@@ -120,7 +119,7 @@ fun StripReaderScreen(
                     }
                     itemsIndexed(stripPage.strips, key = { idx, _ -> "strip-$idx" }) { idx, strip ->
                         val model = remember(strip.src) { strip.src }
-                        AsyncImage(
+                        SaylatRemoteImage(
                             model = ImageRequest.Builder(context).data(model).crossfade(false).build(),
                             contentDescription = "Полоса ${idx + 1}",
                             modifier = Modifier
@@ -128,6 +127,7 @@ fun StripReaderScreen(
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
                             contentScale = ContentScale.FillWidth,
+                            placeholderHeight = 200,
                         )
                     }
                 }

@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SaveAlt
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
@@ -43,6 +44,7 @@ import java.util.Locale
 fun SaylatTopBar(
     screen: AppScreen,
     activeQuery: String?,
+    networkOnline: Boolean = true,
     onBack: () -> Unit,
     onHome: () -> Unit,
     onSettings: () -> Unit,
@@ -57,6 +59,8 @@ fun SaylatTopBar(
     isFavorite: Boolean = false,
     onToggleFavorite: () -> Unit = {},
     onPinShortcut: () -> Unit = {},
+    showShare: Boolean = false,
+    onShare: () -> Unit = {},
 ) {
     val clockLabel = rememberClockLabel()
     val (title, subtitle) = when (screen) {
@@ -66,10 +70,26 @@ fun SaylatTopBar(
         AppScreen.FEED -> "Лента" to "Пикабу · ВК · Дзен"
     }
 
-    Surface(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .statusBarsPadding(),
+    ) {
+        if (!networkOnline) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.errorContainer,
+            ) {
+                Text(
+                    "Нет интернета — доступен офлайн-кэш",
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onErrorContainer,
+                )
+            }
+        }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 1.dp,
         shadowElevation = 0.dp,
@@ -151,6 +171,14 @@ fun SaylatTopBar(
                         Icon(Icons.Default.PushPin, contentDescription = "На рабочий стол")
                     }
                 }
+                if (showShare) {
+                    IconButton(
+                        onClick = onShare,
+                        colors = IconButtonDefaults.filledTonalIconButtonColors(),
+                    ) {
+                        Icon(Icons.Default.Share, contentDescription = "Поделиться")
+                    }
+                }
                 if (showGallerySave) {
                     IconButton(
                         onClick = onSaveGallery,
@@ -197,6 +225,7 @@ fun SaylatTopBar(
                 }
             }
         }
+    }
     }
 }
 

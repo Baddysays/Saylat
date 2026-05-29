@@ -13,12 +13,14 @@ def client(monkeypatch):
 
 
 def test_unified_feed_returns_structure(client):
-    r = client.get("/api/feed?limit=3")
+    r = client.get("/api/feed?limit=3&offset=0&page_size=12")
     assert r.status_code == 200
     data = r.json()
     assert data["source"] == "unified"
     assert "items" in data
     assert isinstance(data["items"], list)
+    assert "has_more" in data
+    assert "total_items" in data
 
 
 def test_api_key_when_configured(monkeypatch):

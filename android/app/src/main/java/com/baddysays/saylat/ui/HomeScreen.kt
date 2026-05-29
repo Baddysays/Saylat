@@ -88,6 +88,8 @@ fun HomeContent(
     liteImagesEnabled: Boolean = false,
     onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
     favorites: List<SaylatPrefs.FavoriteLink> = emptyList(),
+    visitHistory: List<SaylatPrefs.VisitEntry> = emptyList(),
+    onOpenVisit: (String) -> Unit = {},
     onOpenFavorite: (String) -> Unit = {},
     onRemoveFavorite: (String) -> Unit = {},
     onPinFavorite: (SaylatPrefs.FavoriteLink) -> Unit = {},
@@ -274,6 +276,34 @@ fun HomeContent(
                     modifier = pad.fillMaxWidth(),
                     onClick = { onOpenCached(entry.url) },
                 )
+            }
+        }
+        if (visitHistory.isNotEmpty()) {
+            item {
+                HomeSectionHeader(
+                    title = "История",
+                    subtitle = "Недавно открытые страницы",
+                    modifier = pad,
+                )
+            }
+            items(visitHistory.take(6), key = { it.url }) { entry ->
+                Surface(
+                    onClick = { onOpenVisit(entry.url) },
+                    modifier = pad.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
+                ) {
+                    Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+                        Text(entry.title, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            entry.url,
+                            maxLines = 1,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+                        )
+                    }
+                }
             }
         }
         if (recentSearches.isNotEmpty()) {

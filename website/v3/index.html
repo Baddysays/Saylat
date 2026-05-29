@@ -8,6 +8,7 @@
   <link rel="canonical" href="https://saylat.baddysays.ru/" />
   <link rel="icon" href="assets/favicon.png" type="image/png" sizes="512x512" />
   <link rel="apple-touch-icon" href="assets/favicon.png" />
+  <link rel="stylesheet" href="site-legal.css" />
   <style>
     :root{
       --bg:#070a15;
@@ -225,24 +226,47 @@
     .road h3{margin:0 0 6px;font-size:17px;color:var(--text)}
     .road p{margin:0;color:var(--muted);font-size:14px}
     .cmd{font-family:ui-monospace,Consolas,monospace;background:var(--cmd-bg);border:1px solid var(--cmd-border);border-radius:10px;padding:10px;color:var(--cmd-text);overflow:auto;white-space:nowrap}
-    footer{
-      padding:28px 0 40px;
-      border-top:1px solid var(--line);
-      margin-top:8px;
+    .cookie-banner{
+      position:fixed;
+      left:16px;
+      right:16px;
+      bottom:16px;
+      z-index:60;
+      border:1px solid var(--line);
+      border-radius:14px;
+      background:var(--surface);
+      box-shadow:0 14px 30px rgba(0,0,0,.24);
+      padding:12px;
+      display:none;
+      gap:10px;
+      align-items:center;
+      justify-content:space-between;
+      flex-wrap:wrap;
     }
-    .footer-line{
+    .cookie-banner p{
       margin:0;
       color:var(--muted);
-      font-size:14px;
-      line-height:1.6;
-      text-align:center;
+      font-size:13px;
+      line-height:1.5;
+      max-width:720px;
     }
-    .footer-line a{
-      color:var(--muted);
-      text-decoration:none;
+    .cookie-actions{display:flex;gap:8px;flex-wrap:wrap}
+    .cookie-btn{
+      border:1px solid var(--line);
+      background:var(--surface-soft);
+      color:var(--text);
+      border-radius:10px;
+      padding:8px 12px;
+      font-size:13px;
+      font-weight:600;
+      cursor:pointer;
     }
-    .footer-line a:hover{color:var(--text);text-decoration:underline}
-    .footer-sep{margin:0 6px;opacity:.55}
+    .cookie-btn.primary{
+      border-color:transparent;
+      background:linear-gradient(135deg,var(--brand),var(--brand2));
+      color:#061124;
+    }
+    body.cookie-banner-open{padding-bottom:110px}
     a{color:var(--link)}
     @media (max-width:940px){
       .hero,.split,.metrics,.flow,.showcase,.roadmap,.theme-feature,.theme-mini{grid-template-columns:1fr}
@@ -261,7 +285,7 @@
         <h1>Сайты читаются быстро<br/>даже в 2G</h1>
         <p class="lead">Saylat — open-source решение для слабой мобильной связи: сервер сжимает тяжелый веб, а на телефон приходит только нужный контент.</p>
         <div class="cta">
-          <a class="btn btn-main" href="https://github.com/Baddysays/Saylat/releases/latest/download/saylat.apk">Скачать APK</a>
+          <a class="btn btn-main" id="apkDownload" href="https://github.com/Baddysays/Saylat/releases/latest/download/saylat.apk">Скачать APK</a>
           <a class="btn btn-ghost" href="https://github.com/Baddysays/Saylat">Открыть GitHub</a>
         </div>
         <div class="proof">
@@ -427,19 +451,77 @@
       </div>
     </section>
   </main>
-  <footer class="wrap">
+  <footer class="wrap site-footer">
+    <div class="legal-disclaimer">
+      Данный сайт — демонстрационный стенд открытого ПО
+      (<a href="https://github.com/Baddysays/Saylat">Saylat на GitHub</a>).
+      Сайт предоставляется «как есть», исключительно для демонстрации функциональности проекта.
+      Владелец сайта не является организатором распространения информации (ОРИ), владельцем новостного агрегатора
+      или средством массовой информации. Контент, отображаемый через сервис, принадлежит соответствующим
+      правообладателям и обрабатывается автоматически.
+      Для полноценного использования разверните собственный экземпляр приложения —
+      <a href="https://github.com/Baddysays/Saylat#%E2%9A%A1-%D0%B1%D1%8B%D1%81%D1%82%D1%80%D0%B0%D1%8F-%D1%83%D1%81%D1%82%D0%B0%D0%BD%D0%BE%D0%B2%D0%BA%D0%B0-%D0%BE%D0%B4%D0%BD%D0%BE%D0%B9-%D0%BA%D0%BE%D0%BC%D0%B0%D0%BD%D0%B4%D0%BE%D0%B9">инструкция по развёртыванию</a>.
+    </div>
+    <p class="footer-owner">
+      © Маракушин Владимир Романович ·
+      Email: <a href="mailto:hello@baddysays.ru">hello@baddysays.ru</a>
+    </p>
     <p class="footer-line">
       <a href="https://github.com/Baddysays/Saylat/blob/main/CONTRIBUTING.md">Contributing</a><span class="footer-sep">·</span>
       <a href="https://github.com/Baddysays/Saylat/discussions">Discussions</a><span class="footer-sep">·</span>
-      MIT License<span class="footer-sep">·</span>
-      <a href="mailto:hello@baddysays.ru">hello@baddysays.ru</a>
+      <a href="/privacy/">Политика конфиденциальности</a><span class="footer-sep">·</span>
+      MIT License
     </p>
   </footer>
+  <div id="cookieBanner" class="cookie-banner" role="dialog" aria-live="polite" aria-label="Согласие на cookie">
+    <p>
+      Мы используем технические cookie и Яндекс.Метрику для статистики.
+      Продолжая использование, вы можете принять аналитические cookie или оставить только необходимые.
+      Подробнее в <a href="/privacy/">политике конфиденциальности</a>.
+    </p>
+    <div class="cookie-actions">
+      <button id="cookieDecline" class="cookie-btn" type="button">Только необходимые</button>
+      <button id="cookieAccept" class="cookie-btn primary" type="button">Принять</button>
+    </div>
+  </div>
   <script>
     (function () {
       const key = "saylat-site-theme";
+      const consentKey = "saylat-cookie-consent";
+      const metrikaId = 109194191;
       const btn = document.getElementById("themeToggle");
       const root = document.body;
+      const banner = document.getElementById("cookieBanner");
+      const acceptBtn = document.getElementById("cookieAccept");
+      const declineBtn = document.getElementById("cookieDecline");
+      let metrikaInitialized = false;
+      const openBanner = () => {
+        if (!banner) return;
+        banner.style.display = "flex";
+        root.classList.add("cookie-banner-open");
+      };
+      const closeBanner = () => {
+        if (!banner) return;
+        banner.style.display = "none";
+        root.classList.remove("cookie-banner-open");
+      };
+      const initMetrika = () => {
+        if (metrikaInitialized) return;
+        metrikaInitialized = true;
+        (function(m,e,t,r,i,k,a){
+          m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+          m[i].l=1*new Date();
+          for (var j = 0; j < document.scripts.length; j++) { if (document.scripts[j].src === r) return; }
+          k=e.createElement(t); a=e.getElementsByTagName(t)[0]; k.async=1; k.src=r; a.parentNode.insertBefore(k,a);
+        })(window, document, "script", "https://mc.yandex.ru/metrika/tag.js?id=" + metrikaId, "ym");
+        window.ym(metrikaId, "init", {
+          clickmap: true,
+          trackLinks: true,
+          accurateTrackBounce: true,
+          webvisor: true,
+          trustedDomains: ["baddysays.ru", "saylat.baddysays.ru"],
+        });
+      };
       const apply = (mode) => {
         root.setAttribute("data-theme", mode);
         if (btn) btn.textContent = mode === "dark" ? "Светлая тема" : "Тёмная тема";
@@ -447,10 +529,29 @@
       const saved = localStorage.getItem(key);
       const initial = saved === "light" || saved === "dark" ? saved : "dark";
       apply(initial);
+      const consent = localStorage.getItem(consentKey);
+      if (consent === "accepted") {
+        initMetrika();
+      } else if (consent !== "declined") {
+        openBanner();
+      }
+      acceptBtn?.addEventListener("click", function () {
+        localStorage.setItem(consentKey, "accepted");
+        closeBanner();
+        initMetrika();
+      });
+      declineBtn?.addEventListener("click", function () {
+        localStorage.setItem(consentKey, "declined");
+        closeBanner();
+      });
       btn?.addEventListener("click", function () {
         const next = root.getAttribute("data-theme") === "light" ? "dark" : "light";
         localStorage.setItem(key, next);
         apply(next);
+        if (typeof ym === "function") ym(metrikaId, "reachGoal", "theme_toggle");
+      });
+      document.getElementById("apkDownload")?.addEventListener("click", function () {
+        if (typeof ym === "function") ym(metrikaId, "reachGoal", "apk_download");
       });
     })();
   </script>
