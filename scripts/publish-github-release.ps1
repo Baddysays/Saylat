@@ -47,7 +47,7 @@ try {
         } catch { }
     }
     if (-not $existingNotes) {
-        $existingNotes = "Saylat $versionName — обновление приложения."
+        $existingNotes = "Saylat $versionName"
     }
     $notes = $existingNotes
     $meta = @{
@@ -64,12 +64,16 @@ try {
     Write-Host "Tag: $Tag  ($versionName / $versionCode)"
     Write-Host "update.json -> $apkUrl"
 
+    $notesFile = Join-Path $env:TEMP "saylat-release-notes-$Tag.txt"
+    [System.IO.File]::WriteAllText($notesFile, $notes, $utf8NoBom)
+
     $existing = gh release view $Tag 2>$null
     if ($LASTEXITCODE -eq 0) {
         gh release upload $Tag $ReleaseApk --clobber
+        gh release edit $Tag --notes-file $notesFile
         Write-Host "Uploaded saylat.apk to existing release $Tag"
     } else {
-        gh release create $Tag $ReleaseApk --title "Saylat $versionName" --notes $notes
+        gh release create $Tag $ReleaseApk --title "Saylat $versionName" --notes-file $notesFile
         Write-Host "Created release $Tag"
     }
     Write-Host ""

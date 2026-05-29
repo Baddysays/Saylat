@@ -46,13 +46,29 @@ jobs:
       - name: Prepare saylat.apk
         run: cp android/app/build/outputs/apk/release/app-release.apk saylat.apk
 
+      - name: Release notes from update.json
+        id: meta
+        run: |
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+          data = json.loads(Path("releases/update.json").read_text(encoding="utf-8"))
+          name = data.get("version_name", "Saylat")
+          notes = data.get("release_notes", f"Saylat {name}")
+          Path("release-notes.md").write_text(notes, encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as out:
+              out.write(f"version_name={name}\n")
+          PY
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
           files: saylat.apk
-          name: Saylat ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
-          generate_release_notes: true
+          name: Saylat ${{ steps.meta.outputs.version_name }}
+          body_path: release-notes.md
+          generate_release_notes: false
           fail_on_unmatched_files: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
