@@ -20,18 +20,14 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 47
-    app_version_name: str = "0.5.37"
+    app_version_code: int = 48
+    app_version_name: str = "0.5.38"
     app_release_notes: str = (
+        "0.5.38 — главный экран:\n\n"
+        "• Убраны дублирующие плитки «Читалка» и «Умная вёрстка»\n"
+        "• Кнопка «Снова» → «Скрыть» в тесте сети\n\n"
         "0.5.37 — исправление:\n\n"
-        "• Приложение снова запускается (не вылетало сразу после установки 0.5.36)\n\n"
-        "0.5.36 — что нового:\n\n"
-        "• Лента «Все ленты» — кнопка «Показать ещё»\n"
-        "• История посещений на главной\n"
-        "• Баннер «нет интернета»\n"
-        "• Поделиться ссылкой в читалке\n"
-        "• Картинки с индикатором загрузки\n"
-        "• Повтор запросов при обрыве сети"
+        "• Приложение снова запускается (не вылетало сразу после установки 0.5.36)"
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"
