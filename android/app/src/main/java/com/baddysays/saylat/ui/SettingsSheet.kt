@@ -73,6 +73,8 @@ fun SettingsSheet(
     onReaderModeChange: (ReaderMode) -> Unit = {},
     deviceProfile: DeviceProfile? = null,
     onDismiss: () -> Unit,
+    tamagotchiEnabled: Boolean = true,
+    onTamagotchiChange: (Boolean) -> Unit = {},
     onSaveServer: (String) -> Unit,
     onSearchEngine: (SearchEngine) -> Unit,
     onSearxInstance: (String) -> Unit,
@@ -84,8 +86,6 @@ fun SettingsSheet(
     onLiteImagesChange: (Boolean) -> Unit = {},
     showPageLoadStats: Boolean = true,
     onPageLoadStatsChange: (Boolean) -> Unit = {},
-    tamagotchiEnabled: Boolean = true,
-    onTamagotchiChange: (Boolean) -> Unit = {},
     speedMode: QuickSpeedMode = QuickSpeedMode.BALANCED,
     onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
     updateChecking: Boolean = false,
@@ -174,6 +174,8 @@ fun SettingsSheet(
             customServerEnabled = customServerEnabled,
             serverReady = serverReady,
             onCustomServerChange = onCustomServerChange,
+            tamagotchiEnabled = tamagotchiEnabled,
+            onTamagotchiChange = onTamagotchiChange,
         )
     }
 }
@@ -232,6 +234,8 @@ private fun SettingsSheetContent(
     customServerEnabled: Boolean,
     serverReady: Boolean?,
     onCustomServerChange: (Boolean) -> Unit,
+    tamagotchiEnabled: Boolean = true,
+    onTamagotchiChange: (Boolean) -> Unit = {},
 ) {
     var serverDraft by remember(serverUrl) { mutableStateOf(serverUrl) }
     var showAdvancedServer by remember { mutableStateOf(customServerEnabled) }
