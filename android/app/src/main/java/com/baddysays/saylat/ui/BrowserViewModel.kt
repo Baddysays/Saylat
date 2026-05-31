@@ -676,6 +676,10 @@ class BrowserViewModel(
         }
     }
 
+    fun dismissNetworkTest() {
+        _state.value = _state.value.copy(networkTestResult = null)
+    }
+
     fun runNetworkTest() {
         viewModelScope.launch {
             _state.value = _state.value.copy(networkTesting = true, error = null)

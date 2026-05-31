@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.PaddingValues
@@ -19,8 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.MenuBook
-import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.OfflinePin
@@ -75,11 +71,10 @@ fun HomeContent(
     networkTesting: Boolean,
     networkTestResult: NetworkTestResult?,
     smartLayoutAvailable: Boolean,
-    layoutLabLoading: Boolean,
     onQuickLink: (String) -> Unit,
     onRecent: (String) -> Unit,
     onRunNetworkTest: () -> Unit,
-    onOpenLayoutLab: () -> Unit,
+    onDismissNetworkTest: () -> Unit = {},
     connectStatus: com.baddysays.saylat.data.ConnectStatus? = null,
     onService: (String) -> Unit = {},
     onOpenServiceSettings: () -> Unit = {},
@@ -125,35 +120,13 @@ fun HomeContent(
             )
         }
         item {
-            Row(
-                pad.then(Modifier.fillMaxWidth()),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                HomeActionTile(
-                    title = "Читалка",
-                    subtitle = "Страницы через прокси",
-                    icon = { Icon(Icons.AutoMirrored.Filled.MenuBook, null, Modifier.size(22.dp)) },
-                    onClick = { onQuickLink("https://ru.wikipedia.org/wiki/Интернет") },
-                    modifier = Modifier.weight(1f),
-                )
-                HomeActionTile(
-                    title = "Умная вёрстка",
-                    subtitle = "Тест структуры",
-                    icon = { Icon(Icons.Default.AutoAwesome, null, Modifier.size(22.dp)) },
-                    onClick = onOpenLayoutLab,
-                    loading = layoutLabLoading,
-                    modifier = Modifier.weight(1f),
-                    emphasized = true,
-                )
-            }
-        }
-        item {
             NetworkTestCard(
                 modifier = pad.fillMaxWidth(),
                 serverUrl = serverUrl,
                 testing = networkTesting,
                 result = networkTestResult,
                 onRunTest = onRunNetworkTest,
+                onDismissResult = onDismissNetworkTest,
                 slowNetworkMode = slowNetworkMode,
             )
         }
@@ -665,72 +638,6 @@ private fun OfflineCacheRow(
                 )
             }
             Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HomeActionTile(
-    title: String,
-    subtitle: String,
-    icon: @Composable () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    loading: Boolean = false,
-    emphasized: Boolean = false,
-) {
-    Card(
-        onClick = onClick,
-        enabled = !loading,
-        modifier = modifier.height(116.dp),
-        shape = RoundedCornerShape(24.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (emphasized) {
-                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(15.dp),
-            verticalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (emphasized) {
-                        MaterialTheme.colorScheme.surface.copy(alpha = 0.65f)
-                    } else {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
-                    },
-                ) {
-                    Box(Modifier.padding(10.dp)) { icon() }
-                }
-                Icon(
-                    Icons.Default.ChevronRight,
-                    null,
-                    modifier = Modifier.size(18.dp),
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(title, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleSmall)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-            }
         }
     }
 }

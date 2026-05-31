@@ -41,6 +41,7 @@ fun NetworkTestCard(
     testing: Boolean,
     result: NetworkTestResult?,
     onRunTest: () -> Unit,
+    onDismissResult: () -> Unit = {},
     modifier: Modifier = Modifier,
     compact: Boolean = false,
     slowNetworkMode: Boolean = false,
@@ -159,11 +160,11 @@ fun NetworkTestCard(
                 }
                 if (!compact && result != null) {
                     OutlinedButton(
-                        onClick = onRunTest,
+                        onClick = onDismissResult,
                         enabled = !testing,
                         shape = RoundedCornerShape(16.dp),
                     ) {
-                        Text("Снова")
+                        Text("Скрыть")
                     }
                 }
             }
