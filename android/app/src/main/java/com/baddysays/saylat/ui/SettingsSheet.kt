@@ -84,6 +84,8 @@ fun SettingsSheet(
     onLiteImagesChange: (Boolean) -> Unit = {},
     showPageLoadStats: Boolean = true,
     onPageLoadStatsChange: (Boolean) -> Unit = {},
+    tamagotchiEnabled: Boolean = true,
+    onTamagotchiChange: (Boolean) -> Unit = {},
     speedMode: QuickSpeedMode = QuickSpeedMode.BALANCED,
     onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
     updateChecking: Boolean = false,
@@ -556,6 +558,12 @@ private fun SettingsSheetContent(
                             subtitle = "Вес ленты и сравнение с оригиналом",
                             checked = showPageLoadStats,
                             onCheckedChange = onPageLoadStatsChange,
+                        )
+                        SettingsSwitchRow(
+                            title = "Тамагочи при загрузке",
+                            subtitle = "Питомец, если страница грузится дольше 10 секунд",
+                            checked = tamagotchiEnabled,
+                            onCheckedChange = onTamagotchiChange,
                         )
                     }
                 }

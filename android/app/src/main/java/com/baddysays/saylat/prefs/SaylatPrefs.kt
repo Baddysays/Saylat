@@ -42,6 +42,7 @@ class SaylatPrefs(private val context: Context) {
     private val lastSeenVersionKey = androidx.datastore.preferences.core.intPreferencesKey("last_seen_version_code")
     private val onboardingDoneKey = booleanPreferencesKey("onboarding_done")
     private val customServerKey = booleanPreferencesKey("custom_server_enabled")
+    private val tamagotchiKey = booleanPreferencesKey("tamagotchi_enabled")
     private val visitHistoryKey = stringPreferencesKey("visit_history")
 
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
@@ -108,6 +109,10 @@ class SaylatPrefs(private val context: Context) {
         prefs[customServerKey] ?: false
     }
 
+    val tamagotchiEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[tamagotchiKey] ?: true
+    }
+
     val visitHistory: Flow<List<VisitEntry>> = context.dataStore.data.map { prefs ->
         decodeVisits(prefs[visitHistoryKey])
     }
@@ -128,6 +133,7 @@ class SaylatPrefs(private val context: Context) {
         val readerMode: ReaderMode,
         val dismissedReaderBanners: Set<String>,
         val customServerEnabled: Boolean,
+        val tamagotchiEnabled: Boolean,
         val visitHistory: List<VisitEntry>,
     )
 
@@ -147,6 +153,7 @@ class SaylatPrefs(private val context: Context) {
             readerMode = ReaderMode.fromId(prefs[readerModeKey]),
             dismissedReaderBanners = decodeSet(prefs[dismissedBannersKey]),
             customServerEnabled = prefs[customServerKey] ?: false,
+            tamagotchiEnabled = prefs[tamagotchiKey] ?: true,
             visitHistory = decodeVisits(prefs[visitHistoryKey]),
         )
     }
@@ -266,6 +273,10 @@ class SaylatPrefs(private val context: Context) {
                 if (baked.isNotEmpty()) prefs[serverKey] = baked
             }
         }
+    }
+
+    suspend fun setTamagotchiEnabled(enabled: Boolean) {
+        context.dataStore.edit { it[tamagotchiKey] = enabled }
     }
 
     suspend fun ensureConsumerReady() {

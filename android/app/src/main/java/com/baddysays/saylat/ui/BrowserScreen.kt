@@ -34,7 +34,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +67,25 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
         }
     }
     val isFavorite = currentFavoriteUrl != null && state.favoriteLinks.any { it.url == currentFavoriteUrl }
+
+    var loadingStartTime by remember { mutableLongStateOf(0L) }
+    var tamagotchiGate by remember { mutableStateOf(false) }
+    val tamagotchiController = rememberTamagotchiController(
+        onReady = { tamagotchiGate = false },
+    )
+
+    LaunchedEffect(state.loading, state.tamagotchiEnabled) {
+        if (state.loading && state.tamagotchiEnabled) {
+            loadingStartTime = System.currentTimeMillis()
+            tamagotchiGate = false
+        } else if (loadingStartTime > 0L) {
+            val elapsed = System.currentTimeMillis() - loadingStartTime
+            if (elapsed > 10_000 && screen == AppScreen.READER) {
+                tamagotchiGate = true
+            }
+            loadingStartTime = 0L
+        }
+    }
 
     val interceptBack = state.showLayoutLab ||
         state.showFeedReply ||
@@ -194,6 +217,11 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                         state.webViewUrl != null -> ReaderWebViewModeBanner(
                             dismissedIds = dismissed,
                             onDismiss = viewModel::dismissReaderBanner,
+                        )
+                        state.loading && state.stripPage == null && state.tamagotchiEnabled -> TamagotchiLoadingBanner(
+                            controller = tamagotchiController,
+                            url = urlSeed,
+                            loading = state.loading,
                         )
                         state.loading && state.stripPage == null -> ReaderPageLoadProgress(url = urlSeed)
                         stats != null && state.stripPage == null -> ReaderPageLoadSummary(
@@ -356,6 +384,12 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
                     }
                 }
                 }
+
+                if (tamagotchiGate) {
+                    TamagotchiReadyOverlay(
+                        onOpen = { tamagotchiGate = false },
+                    )
+                }
             }
         }
     }
@@ -413,6 +447,8 @@ fun BrowserScreen(viewModel: BrowserViewModel) {
             onReaderModeChange = viewModel::setReaderMode,
             showPageLoadStats = state.showPageLoadStats,
             onPageLoadStatsChange = viewModel::setPageLoadStatsEnabled,
+            tamagotchiEnabled = state.tamagotchiEnabled,
+            onTamagotchiChange = viewModel::setTamagotchiEnabled,
             speedMode = QuickSpeedMode.fromFlags(state.slowNetworkMode, state.liteImagesEnabled),
             onSpeedModeChange = viewModel::setQuickSpeedMode,
             connectStatus = state.connectStatus,

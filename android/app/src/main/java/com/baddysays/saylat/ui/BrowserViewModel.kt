@@ -104,6 +104,7 @@ data class BrowserUiState(
     val layoutLabResult: LayoutLabResult? = null,
     val readerUseSmartLayout: Boolean = false,
     val showPageLoadStats: Boolean = true,
+    val tamagotchiEnabled: Boolean = true,
     val pageLoadStats: ArticleStats? = null,
     val showWhatsNew: Boolean = false,
     val whatsNewVersion: String = "",
@@ -226,6 +227,7 @@ class BrowserViewModel(
                     translateTargetLang = bundle.translateTargetLang,
                     appTheme = bundle.appTheme,
                     showPageLoadStats = bundle.pageLoadStatsEnabled,
+                    tamagotchiEnabled = bundle.tamagotchiEnabled,
                     readerMode = bundle.readerMode,
                     dismissedReaderBanners = bundle.dismissedReaderBanners,
                     customServerEnabled = bundle.customServerEnabled,
@@ -581,6 +583,10 @@ class BrowserViewModel(
 
     fun setPageLoadStatsEnabled(enabled: Boolean) {
         viewModelScope.launch { prefs.setPageLoadStatsEnabled(enabled) }
+    }
+
+    fun setTamagotchiEnabled(enabled: Boolean) {
+        viewModelScope.launch { prefs.setTamagotchiEnabled(enabled) }
     }
 
     fun setAppTheme(theme: AppThemeId) {
