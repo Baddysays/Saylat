@@ -1,7 +1,7 @@
 {
-  "version_code": 48,
-  "version_name": "0.5.38",
-  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.38/saylat.apk",
-  "release_notes": "0.5.38 — главный экран:\n\n• Убраны дублирующие плитки «Читалка» и «Умная вёрстка»\n• Кнопка «Снова» → «Скрыть» в тесте сети",
+  "version_code": 47,
+  "version_name": "0.5.37",
+  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.37/saylat.apk",
+  "release_notes": "0.5.37 — исправление:\n\n• Приложение снова запускается (не вылетало сразу после установки 0.5.36)",
   "mandatory": false
 }
