@@ -20,14 +20,14 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 48
-    app_version_name: str = "0.5.38"
+    app_version_code: int = 49
+    app_version_name: str = "0.5.40"
     app_release_notes: str = (
-        "0.5.38 — главный экран:\n\n"
-        "• Убраны дублирующие плитки «Читалка» и «Умная вёрстка»\n"
-        "• Кнопка «Снова» → «Скрыть» в тесте сети\n\n"
-        "0.5.37 — исправление:\n\n"
-        "• Приложение снова запускается (не вылетало сразу после установки 0.5.36)"
+        "0.5.40 — тамагочи при загрузке:\n\n"
+        "• Пиксельный питомец появляется, если страница грузится >10 сек\n"
+        "• Здоровье, сытость, внимание — ухаживайте тапом и салатиками\n"
+        "• Кнопка «Готово» по загрузке страницы\n"
+        "• Можно отключить в настройках"
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"
