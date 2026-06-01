@@ -15,6 +15,8 @@
 
 *by **baddysays*** · ✉️ [hello@baddysays.ru](mailto:hello@baddysays.ru) · 💬 [@baddysays](https://t.me/baddysays)
 
+**Текущий релиз:** [0.5.40](https://github.com/Baddysays/Saylat/releases/tag/v0.5.40) (build 49) — [что нового](docs/CHANGELOG.md)
+
 ## Что это
 
 Saylat — это personal-first браузер и контент-хаб:
@@ -29,7 +31,8 @@ Saylat — это personal-first браузер и контент-хаб:
 - 🌐 **Тонкий браузер** — текстовый рендер + режим STRIPS (скриншот-полосы)
 - 💬 **Telegram, VK, почта** — ленты и ответы через VPS (токены не в APK)
 - 📦 **Офлайн-кэш** — недавно прочитанное остаётся на телефоне
-- 🔄 **Обновления** — APK только с [GitHub Releases](https://github.com/Baddysays/Saylat/releases) (`saylat.apk`)
+- 🐣 **Тамагочи** — питомец, пока страница грузится в медленной сети (можно отключить)
+- 🔄 **Обновления** — APK с [GitHub Releases](https://github.com/Baddysays/Saylat/releases/latest) (`saylat.apk`)
 
 ## ⚡ Быстрая установка (одной командой)
 
@@ -96,6 +99,8 @@ docker compose up -d --build
 
 | Документ | О чём |
 |----------|--------|
+| [docs/CHANGELOG.md](docs/CHANGELOG.md) | История версий |
+| [docs/STRUCTURE.md](docs/STRUCTURE.md) | Структура репозитория |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Планы и статус |
 | [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Требования |
 | [docs/COMPRESSION_LEVELS.md](docs/COMPRESSION_LEVELS.md) | Light / Medium / Full |

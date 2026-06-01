@@ -9,7 +9,9 @@
 
 ## Быстрый деплой на поддомен
 
-**Рекомендуется v3** — продакшен-сборка и деплой одной командой:
+**Рекомендуется v3** (лендинг + APK с [GitHub Releases latest](https://github.com/Baddysays/Saylat/releases/latest)). При смене версии приложения: `.\scripts\sync-app-version.ps1`.
+
+Сборка и деплой:
 
 ```powershell
 .\scripts\build-saylat-website.ps1

@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag to build and attach APK to (e.g. v0.5.34)"
+        description: "Tag to build and attach APK to (e.g. v0.5.40)"
         required: true
-        default: "v0.5.34"
+        default: "v0.5.40"
 
 permissions:
   contents: write

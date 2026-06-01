@@ -28,8 +28,8 @@ Push-Location $Root
 try {
     if (Test-Path $Archive) { Remove-Item $Archive -Force }
 
-    $versionCode = 36
-    $versionName = "0.5.25"
+    $versionCode = 0
+    $versionName = "0.0.0"
     $releaseNotes = "Обновление Saylat."
     if (Test-Path $GradleFile) {
         $gradleText = Get-Content $GradleFile -Raw
@@ -41,6 +41,8 @@ try {
         try {
             $updateRaw = [System.IO.File]::ReadAllText($UpdateJson, [System.Text.Encoding]::UTF8)
             $metaJson = $updateRaw | ConvertFrom-Json
+            if ($metaJson.version_code) { $versionCode = [int]$metaJson.version_code }
+            if ($metaJson.version_name) { $versionName = [string]$metaJson.version_name }
             if ($metaJson.release_notes) { $releaseNotes = [string]$metaJson.release_notes }
         } catch {
             Write-Host "WARN: не удалось прочитать releases/update.json, оставляем notes по умолчанию"
