@@ -195,11 +195,11 @@ class TestRssFeeds:
         import feedparser as fp
         feed = fp.parse(self.ATOM_FEED)
         item = _entry_to_feed_item(feed.entries[0], "Test Feed")
-        assert item["title"] == "Entry One"
-        assert item["href"] == "https://example.com/1"
-        assert item["source"] == "rss"
-        assert item["source_label"] == "Test Feed"
-        assert "date" in item
+        assert item.title == "Entry One"
+        assert item.href == "https://example.com/1"
+        assert item.kind == "link"
+        assert item.from_ == "Test Feed"
+        assert item.time
 
     def test_strips_html_from_summary(self):
         try:
@@ -215,7 +215,7 @@ class TestRssFeeds:
         </item></channel></rss>"""
         feed = fp.parse(rss)
         item = _entry_to_feed_item(feed.entries[0], "src")
-        assert "<" not in item["body"], "HTML-теги должны быть удалены"
+        assert "<" not in item.body, "HTML-теги должны быть удалены"
 
 
 # ─────────────────────────────────────────────────────────────
