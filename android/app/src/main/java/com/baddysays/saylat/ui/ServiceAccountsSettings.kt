@@ -44,7 +44,7 @@ fun draftFromPublic(public: ServiceCredentialsPublic?): ServiceCredentialsDraft 
     if (public == null) return ServiceCredentialsDraft()
     return ServiceCredentialsDraft(
         telegramApiId = if (public.telegram_api_id > 0) public.telegram_api_id.toString() else "",
-        telegramApiHash = public.telegram_api_hash,
+        telegramApiHash = "",
         mailImapHost = public.mail_imap_host,
         mailImapPort = public.mail_imap_port.toString(),
         mailSmtpHost = public.mail_smtp_host,
@@ -92,7 +92,17 @@ fun ServiceAccountsSettingsSection(
             instruction = "API ID и Hash — с my.telegram.org. Телефон в формате +7… Код приходит в приложение Telegram.",
         ) {
             ServiceTextField(draft.telegramApiId, { onDraftChange(draft.copy(telegramApiId = it)) }, "API ID", KeyboardType.Number, fieldColors)
-            ServiceTextField(draft.telegramApiHash, { onDraftChange(draft.copy(telegramApiHash = it)) }, "API Hash", KeyboardType.Text, fieldColors)
+            OutlinedTextField(
+                value = draft.telegramApiHash,
+                onValueChange = { onDraftChange(draft.copy(telegramApiHash = it)) },
+                label = { Text("API Hash") },
+                placeholder = { Text("Пусто — не менять") },
+                singleLine = true,
+                visualTransformation = PasswordVisualTransformation(),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = fieldColors,
+            )
             ServiceTextField(draft.telegramPhone, { onDraftChange(draft.copy(telegramPhone = it)) }, "Телефон", KeyboardType.Phone, fieldColors)
             if (telegramCodeSent) {
                 ServiceTextField(draft.telegramCode, { onDraftChange(draft.copy(telegramCode = it)) }, "Код из Telegram", KeyboardType.Number, fieldColors)

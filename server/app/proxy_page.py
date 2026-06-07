@@ -10,6 +10,7 @@ from bs4 import BeautifulSoup, Tag
 
 from .config import settings
 from .http_ua import normalize_fetch_url, ua_for_url
+from .url_safety import validate_public_http_url
 
 _PROXY_CSS = """
 html, body { margin: 0; padding: 0; background: #f5f5f5; }
@@ -92,10 +93,11 @@ def _rewrite_attr(
 
 
 async def fetch_proxy_html(target_url: str, *, request_base: str) -> str:
-    if not _is_http_url(target_url):
+    validated = validate_public_http_url(target_url)
+    if not _is_http_url(validated):
         raise ValueError("Only http/https URLs supported")
 
-    fetch_url = normalize_fetch_url(target_url)
+    fetch_url = normalize_fetch_url(validated)
     ua = ua_for_url(fetch_url)
     async with httpx.AsyncClient(
         follow_redirects=True,

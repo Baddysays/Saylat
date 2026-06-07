@@ -12,14 +12,14 @@ from starlette.responses import JSONResponse
 
 from .config import settings
 
-_CONNECT_PREFIX = "/api/connect"
+_CONNECT_STATUS = "/api/connect/status"
 _PUBLIC_PREFIXES = ("/health", "/static", "/api/app/update", "/app/download/")
 
 
 def _path_exempt(path: str) -> bool:
     if path == "/" or path.startswith(_PUBLIC_PREFIXES):
         return True
-    if path.startswith(_CONNECT_PREFIX):
+    if path == _CONNECT_STATUS:
         return True
     return False
 

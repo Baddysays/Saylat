@@ -24,7 +24,7 @@ data class MessageResponse(val message: String = "")
 @JsonClass(generateAdapter = true)
 data class ServiceCredentialsPublic(
     val telegram_api_id: Int = 0,
-    val telegram_api_hash: String = "",
+    val telegram_api_hash_set: Boolean = false,
     val mail_imap_host: String = "",
     val mail_imap_port: Int = 993,
     val mail_smtp_host: String = "",

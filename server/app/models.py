@@ -233,7 +233,7 @@ class ConnectStatusResponse(BaseModel):
 
 class ServiceCredentialsPublic(BaseModel):
     telegram_api_id: int = 0
-    telegram_api_hash: str = ""
+    telegram_api_hash_set: bool = False
     mail_imap_host: str = ""
     mail_imap_port: int = 993
     mail_smtp_host: str = ""

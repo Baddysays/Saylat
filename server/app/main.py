@@ -342,9 +342,10 @@ async def proxy_asset(
 ) -> Response:
     import base64
 
-    target = url.strip()
-    if not target.startswith(("http://", "https://")):
-        raise HTTPException(status_code=400, detail="Only http/https URLs supported")
+    try:
+        target = validate_public_http_url(url.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     page_url = target
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:

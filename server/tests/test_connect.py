@@ -26,7 +26,10 @@ def test_open_vk_without_token():
 def test_credentials_get_put():
     r = client.get("/api/connect/credentials")
     assert r.status_code == 200
-    assert "mail_password_set" in r.json()
+    data = r.json()
+    assert "mail_password_set" in data
+    assert "telegram_api_hash_set" in data
+    assert "telegram_api_hash" not in data
 
     r2 = client.put(
         "/api/connect/credentials",

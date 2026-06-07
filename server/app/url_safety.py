@@ -18,7 +18,7 @@ _BLOCKED_NAMES = frozenset(
 )
 
 
-def validate_public_http_url(url: str) -> str:
+def validate_public_http_url(url: str, *, check_dns: bool = True) -> str:
     raw = (url or "").strip()
     if not raw:
         raise ValueError("Укажите адрес страницы (http или https)")
@@ -34,6 +34,8 @@ def validate_public_http_url(url: str) -> str:
         if host.endswith(suffix):
             raise ValueError("Этот адрес недоступен через прокси")
     _reject_ip_literal(host)
+    if check_dns and hostname_resolves_to_private(host):
+        raise ValueError("Этот адрес недоступен через прокси")
     return raw
 
 

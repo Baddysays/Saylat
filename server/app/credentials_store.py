@@ -54,7 +54,7 @@ def update_credentials(patch: ServiceCredentialsUpdate) -> ServiceCredentials:
 def to_public(creds: ServiceCredentials) -> ServiceCredentialsPublic:
     return ServiceCredentialsPublic(
         telegram_api_id=creds.telegram_api_id,
-        telegram_api_hash=creds.telegram_api_hash,
+        telegram_api_hash_set=bool(creds.telegram_api_hash.strip()),
         mail_imap_host=creds.mail_imap_host,
         mail_imap_port=creds.mail_imap_port,
         mail_smtp_host=creds.mail_smtp_host,
