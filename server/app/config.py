@@ -20,14 +20,14 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 49
-    app_version_name: str = "0.5.40"
+    app_version_code: int = 66
+    app_version_name: str = "0.5.57"
     app_release_notes: str = (
-        "0.5.40 — тамагочи при загрузке:\n\n"
-        "• Пиксельный питомец появляется, если страница грузится >10 сек\n"
-        "• Здоровье, сытость, внимание — ухаживайте тапом и салатиками\n"
-        "• Кнопка «Готово» по загрузке страницы\n"
-        "• Настройка: можно отключить в настройках приложения"
+        "0.5.57 — 2G и кодировки:\n\n"
+        "• Длинные таймауты и повторы на реальном 2G/EDGE\n"
+        "• Заголовок X-Saylat-Slow-Network — сервер ждёт до 90 с\n"
+        "• Кириллица cp1251/koi8-r при разборе страниц\n"
+        "• JSON ответы с charset=utf-8"
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"

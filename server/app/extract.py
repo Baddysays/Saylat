@@ -16,7 +16,19 @@ from .pikabu_extract import (
     is_pikabu_story_url,
     is_pikabu_url,
 )
+from .http_text import decode_response_text
 from .http_ua import normalize_fetch_url, ua_for_url
+
+MIN_WORDS_V2_FALLBACK = 80
+
+
+def _blocks_word_count(blocks: list[Block]) -> int:
+    parts = [
+        (b.text or "")
+        for b in blocks
+        if b.type in {"paragraph", "heading", "quote"}
+    ]
+    return len(re.findall(r"\w{3,}", " ".join(parts)))
 
 ALLOWED_TAGS = {
     "p",
@@ -87,6 +99,40 @@ def _spans_plain(spans: list[TextSpan]) -> str:
     return "".join(s.text for s in spans)
 
 
+_CONTENT_SELECTORS = (
+    "article",
+    "main",
+    "[role='main']",
+    ".entry-content",
+    ".post-content",
+    ".article-body",
+    ".article-content",
+    ".content",
+    "#content",
+)
+
+
+def _pick_content_root(soup: BeautifulSoup) -> Tag:
+    best: Tag | None = None
+    best_len = 0
+    for selector in _CONTENT_SELECTORS:
+        for node in soup.select(selector):
+            n = len(_clean_text(node.get_text()))
+            if n > best_len:
+                best_len = n
+                best = node
+    if best is not None and best_len >= 80:
+        return best
+    return soup.body or soup
+
+
+def _inside_chrome(node: Tag) -> bool:
+    for parent in node.parents:
+        if isinstance(parent, Tag) and parent.name in {"nav", "aside", "footer", "header", "script", "style"}:
+            return True
+    return False
+
+
 def _meta_title(html: str) -> str:
     soup = BeautifulSoup(html, "lxml")
     for selector in (
@@ -129,12 +175,13 @@ def _page_lang(html: str) -> str:
 
 
 def _html_to_blocks(soup: BeautifulSoup, page_url: str) -> list[Block]:
+    root = _pick_content_root(soup)
     blocks: list[Block] = []
-    for node in soup.find_all(
+    for node in root.find_all(
         ["h1", "h2", "h3", "h4", "h5", "h6", "p", "ul", "ol", "blockquote", "img", "a"],
         recursive=True,
     ):
-        if not isinstance(node, Tag):
+        if not isinstance(node, Tag) or _inside_chrome(node):
             continue
         name = node.name
         if name in {"h1", "h2", "h3", "h4", "h5", "h6"}:
@@ -256,17 +303,23 @@ def blocks_layout_no_images(blocks: list[Block]) -> list[Block]:
     return result
 
 
-async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArticle:
+async def extract_article(
+    url: str,
+    *,
+    images_mode: str = "normal",
+    timeout_sec: float | None = None,
+) -> SaylatArticle:
     started = time.perf_counter()
     fetch_url = normalize_fetch_url(url)
     ua = ua_for_url(fetch_url)
+    timeout = timeout_sec or settings.request_timeout_sec
     async with httpx.AsyncClient(
         follow_redirects=True,
         headers={"User-Agent": ua},
     ) as client:
-        resp = await client.get(fetch_url, timeout=settings.request_timeout_sec)
+        resp = await client.get(fetch_url, timeout=timeout)
         resp.raise_for_status()
-        html = resp.text[: settings.max_html_bytes]
+        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
         original_bytes = len(resp.content)
         page_lang = _page_lang(html)
 
@@ -288,7 +341,26 @@ async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArt
             )
             soup = BeautifulSoup(cleaned, "lxml")
             blocks = _html_to_blocks(soup, url)
+            if not is_pikabu_story_url(url):
+                from .extract_v2 import try_improve_blocks
+
+                blocks = try_improve_blocks(html, url, blocks)
             excerpt = _clean_text(doc.short_title() or "")
+        mode = (images_mode or "normal").strip().lower()
+        wc = _blocks_word_count(blocks)
+        if wc < MIN_WORDS_V2_FALLBACK and not is_pikabu_story_url(url):
+            from .extract_v2 import extract_article_v2
+
+            v2_data = await extract_article_v2(fetch_url, html=html, images_mode=mode)
+            v2_blocks = [Block.model_validate(b) for b in v2_data.get("blocks", [])]
+            if _blocks_word_count(v2_blocks) > wc:
+                blocks = v2_blocks
+                v2_title = _clean_text(str(v2_data.get("title") or ""))
+                if v2_title:
+                    title = v2_title
+                v2_excerpt = _clean_text(str(v2_data.get("excerpt") or ""))
+                if v2_excerpt:
+                    excerpt = v2_excerpt
         if not blocks:
             host = urlparse(url).hostname or url
             blocks.append(
@@ -301,7 +373,6 @@ async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArt
                 )
             )
 
-        mode = (images_mode or "normal").strip().lower()
         image_count = 0
         images_omitted = 0
         if mode == "layout":
@@ -309,6 +380,16 @@ async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArt
             blocks = _dedupe_blocks(blocks_layout_no_images(blocks))
         elif mode == "off":
             blocks = blocks_after_images_off(blocks) if is_pikabu_url(url) else _strip_image_blocks(blocks)
+        elif mode == "refs":
+            from urllib.parse import urljoin
+
+            for block in blocks:
+                if block.type != "image" or not block.src:
+                    continue
+                absolute = urljoin(url, block.src)
+                if absolute.startswith(("http://", "https://")):
+                    block.src = absolute
+                    image_count += 1
         else:
             profile = TINY_PROFILE if mode == "tiny" else NORMAL_PROFILE
             for block in blocks:
@@ -352,18 +433,19 @@ async def extract_article(url: str, *, images_mode: str = "normal") -> SaylatArt
         return article
 
 
-async def extract_plain_fallback(url: str) -> SaylatArticle:
+async def extract_plain_fallback(url: str, *, timeout_sec: float | None = None) -> SaylatArticle:
     """Если readability не справился — отдать сырой текст страницы без картинок."""
     started = time.perf_counter()
     fetch_url = normalize_fetch_url(url)
     ua = ua_for_url(fetch_url)
+    timeout = timeout_sec or settings.request_timeout_sec
     async with httpx.AsyncClient(
         follow_redirects=True,
         headers={"User-Agent": ua},
     ) as client:
-        resp = await client.get(fetch_url, timeout=settings.request_timeout_sec)
+        resp = await client.get(fetch_url, timeout=timeout)
         resp.raise_for_status()
-        html = resp.text[: settings.max_html_bytes]
+        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
         original_bytes = len(resp.content)
 
     soup = BeautifulSoup(html, "lxml")

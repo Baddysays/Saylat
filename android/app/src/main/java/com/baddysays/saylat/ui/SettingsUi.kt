@@ -4,17 +4,15 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -22,45 +20,61 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.baddysays.saylat.prefs.AppLanguage
+import com.baddysays.saylat.ui.strings.SaylatStrings
 
-enum class SettingsTab(val label: String) {
-    GENERAL("Базовые"),
-    NETWORK("Подключение"),
-    READER("Чтение"),
-    SERVICES("Аккаунты"),
+enum class SettingsTab {
+    GENERAL,
+    PET,
+    NETWORK,
+    READER,
+    SERVICES,
 }
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun SettingsTabBar(
     selected: SettingsTab,
+    uiLanguage: AppLanguage,
     onSelect: (SettingsTab) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    FlowRow(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         SettingsTab.entries.forEach { tab ->
-            FilterChip(
-                selected = tab == selected,
+            val picked = tab == selected
+            Surface(
                 onClick = { onSelect(tab) },
-                label = {
-                    Text(
-                        tab.label,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (tab == selected) FontWeight.SemiBold else FontWeight.Normal,
-                    )
+                shape = RoundedCornerShape(10.dp),
+                color = if (picked) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f)
                 },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.65f),
-                ),
-            )
+                modifier = Modifier.weight(1f),
+            ) {
+                Text(
+                    SaylatStrings.settingsTab(tab, uiLanguage),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 10.dp, horizontal = 4.dp),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = if (picked) FontWeight.SemiBold else FontWeight.Normal,
+                    color = if (picked) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.75f)
+                    },
+                )
+            }
         }
     }
 }

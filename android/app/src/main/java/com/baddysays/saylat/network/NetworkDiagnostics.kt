@@ -35,16 +35,8 @@ enum class SpeedTier {
 
 object NetworkDiagnostics {
 
-    fun httpClient(slowNetwork: Boolean): OkHttpClient {
-        val connectSec = if (slowNetwork) 60L else 25L
-        val readSec = if (slowNetwork) 180L else 75L
-        return OkHttpClient.Builder()
-            .connectTimeout(connectSec, TimeUnit.SECONDS)
-            .readTimeout(readSec, TimeUnit.SECONDS)
-            .writeTimeout(connectSec, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .build()
-    }
+    fun httpClient(slowNetwork: Boolean): OkHttpClient =
+        SaylatHttpClient.build(slowNetwork = slowNetwork)
 
     suspend fun runFullTest(baseUrl: String, slowNetwork: Boolean): NetworkTestResult =
         withContext(Dispatchers.IO) {

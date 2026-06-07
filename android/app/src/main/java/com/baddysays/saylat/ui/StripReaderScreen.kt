@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -33,6 +34,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil.request.ImageRequest
 import com.baddysays.saylat.data.StripPage
+import com.baddysays.saylat.prefs.AppLanguage
+import com.baddysays.saylat.ui.strings.SaylatStrings
 
 @Composable
 fun StripReaderScreen(
@@ -40,6 +43,8 @@ fun StripReaderScreen(
     stripPage: StripPage?,
     pageUrl: String,
     fromCache: Boolean,
+    tamagotchiEnabled: Boolean = false,
+    uiLanguage: AppLanguage = AppLanguage.RU,
     saveInProgress: Boolean,
     saveMessage: String?,
     onSaveStrips: () -> Unit,
@@ -48,10 +53,22 @@ fun StripReaderScreen(
     modifier: Modifier = Modifier,
 ) {
     when {
-        loading -> Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                CircularProgressIndicator()
-                Text("Рисуем полосы на сервере…", style = MaterialTheme.typography.bodyMedium)
+        loading -> {
+            if (tamagotchiEnabled) {
+                Box(modifier.fillMaxSize())
+            } else {
+                Box(modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text(
+                            SaylatStrings.readerLoadingStrips(uiLanguage),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
             }
         }
         stripPage != null -> {
@@ -119,16 +136,24 @@ fun StripReaderScreen(
                     }
                     itemsIndexed(stripPage.strips, key = { idx, _ -> "strip-$idx" }) { idx, strip ->
                         val model = remember(strip.src) { strip.src }
-                        SaylatRemoteImage(
-                            model = ImageRequest.Builder(context).data(model).crossfade(false).build(),
-                            contentDescription = "Полоса ${idx + 1}",
+                        Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(4.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
-                            contentScale = ContentScale.FillWidth,
-                            placeholderHeight = 200,
-                        )
+                                .heightIn(min = 120.dp, max = 800.dp),
+                        ) {
+                            ZoomableBox(modifier = Modifier.fillMaxSize()) {
+                                SaylatRemoteImage(
+                                    model = ImageRequest.Builder(context).data(model).crossfade(false).build(),
+                                    contentDescription = "Полоса ${idx + 1}",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                                    contentScale = ContentScale.FillWidth,
+                                    placeholderHeight = 200,
+                                )
+                            }
+                        }
                     }
                 }
             }

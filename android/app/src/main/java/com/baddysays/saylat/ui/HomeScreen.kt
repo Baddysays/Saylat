@@ -1,34 +1,23 @@
 package com.baddysays.saylat.ui
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.OfflinePin
 import androidx.compose.material.icons.filled.PushPin
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -37,32 +26,52 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.baddysays.saylat.data.HistoryEntry
 import com.baddysays.saylat.cache.PageCache
-import com.baddysays.saylat.util.formatBytes
-import com.baddysays.saylat.network.NetworkFormat
 import com.baddysays.saylat.network.NetworkTestResult
+import com.baddysays.saylat.prefs.AppLanguage
+import com.baddysays.saylat.prefs.PetProfile
 import com.baddysays.saylat.prefs.SaylatPrefs
+import com.baddysays.saylat.ui.strings.SaylatStrings
 import com.baddysays.saylat.search.SearchEngine
+import com.baddysays.saylat.util.formatBytes
+import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-private data class QuickLink(val label: String, val url: String)
+private sealed class HomeListEntry(val url: String, val title: String) {
+    data class Pinned(val favorite: SaylatPrefs.FavoriteLink) : HomeListEntry(favorite.url, favorite.title)
+    data class Cached(val entry: PageCache.CachedEntry, val pinned: Boolean) : HomeListEntry(entry.url, entry.title)
+}
 
-private val quickLinks = listOf(
-    QuickLink("Википедия", "https://ru.wikipedia.org/wiki/Интернет"),
-    QuickLink("Пикабу", "https://pikabu.ru/"),
-    QuickLink("Хабр", "https://habr.com/ru/articles/"),
-)
+private fun buildHomeList(
+    favorites: List<SaylatPrefs.FavoriteLink>,
+    offlineCache: List<PageCache.CachedEntry>,
+): List<HomeListEntry> {
+    val favUrls = favorites.map { it.url }.toSet()
+    val pinned = favorites.map { HomeListEntry.Pinned(it) }
+    val cached = offlineCache
+        .filter { it.url !in favUrls }
+        .sortedByDescending { it.savedAt }
+        .map { HomeListEntry.Cached(it, pinned = false) }
+    return pinned + cached
+}
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeContent(
     searchEngine: SearchEngine,
+    petProfile: PetProfile = PetProfile(),
+    tamagotchiEnabled: Boolean = true,
+    onPetCare: () -> Unit = {},
+    onOpenPetShop: () -> Unit = {},
+    onHatchEgg: () -> Unit = {},
     recentSearches: List<String>,
     serverUrl: String,
     serverReady: Boolean? = null,
@@ -71,6 +80,7 @@ fun HomeContent(
     networkTesting: Boolean,
     networkTestResult: NetworkTestResult?,
     smartLayoutAvailable: Boolean,
+    uiLanguage: AppLanguage = AppLanguage.RU,
     onQuickLink: (String) -> Unit,
     onRecent: (String) -> Unit,
     onRunNetworkTest: () -> Unit,
@@ -84,235 +94,113 @@ fun HomeContent(
     onSpeedModeChange: (QuickSpeedMode) -> Unit = {},
     favorites: List<SaylatPrefs.FavoriteLink> = emptyList(),
     visitHistory: List<SaylatPrefs.VisitEntry> = emptyList(),
+    historyEntries: List<HistoryEntry> = emptyList(),
     onOpenVisit: (String) -> Unit = {},
     onOpenFavorite: (String) -> Unit = {},
     onRemoveFavorite: (String) -> Unit = {},
     onPinFavorite: (SaylatPrefs.FavoriteLink) -> Unit = {},
     offlineCache: List<PageCache.CachedEntry> = emptyList(),
     onOpenCached: (String) -> Unit = {},
+    trafficSavedToday: Long = 0L,
     modifier: Modifier = Modifier,
 ) {
-    val pad = Modifier.padding(horizontal = 16.dp)
+    val items = remember(favorites, offlineCache) { buildHomeList(favorites, offlineCache) }
+    val homeHistory = remember(historyEntries, visitHistory) {
+        if (historyEntries.isNotEmpty()) historyEntries
+        else visitHistory.map { HistoryEntry(url = it.url, title = it.title, visitedAt = it.visitedAt) }
+    }
+    val dateFmt = remember { SimpleDateFormat("HH:mm", Locale.getDefault()) }
+    val dateFmtDay = remember { SimpleDateFormat("d MMM", Locale("ru")) }
+
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 100.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(bottom = 12.dp),
     ) {
-        item { HomeHero(networkTestResult) }
         item {
-            SpeedModeStrip(
-                modifier = pad.fillMaxWidth(),
-                selected = when {
-                    slowNetworkMode && liteImagesEnabled -> QuickSpeedMode.ECO
-                    slowNetworkMode -> QuickSpeedMode.BALANCED
-                    else -> QuickSpeedMode.FAST
-                },
-                onSelect = onSpeedModeChange,
+            HomeScreenContent(
+                history = homeHistory,
+                savedToday = trafficSavedToday,
+                smartLayoutAvailable = smartLayoutAvailable,
+                onNavigate = onQuickLink,
             )
         }
-        item {
-            HomeServerStatusCard(
-                ready = serverReady,
-                message = serverStatusMessage,
-                checking = serverReady == null,
-                onRetry = onRefreshServerStatus,
-                modifier = pad,
-            )
-        }
-        item {
-            NetworkTestCard(
-                modifier = pad.fillMaxWidth(),
-                serverUrl = serverUrl,
-                testing = networkTesting,
-                result = networkTestResult,
-                onRunTest = onRunNetworkTest,
-                onDismissResult = onDismissNetworkTest,
-                slowNetworkMode = slowNetworkMode,
-            )
-        }
-        item {
-            ServiceQuickAccessBlock(
-                modifier = pad.fillMaxWidth(),
-                status = connectStatus,
-                onService = onService,
-                onOpenServiceSettings = onOpenServiceSettings,
-            )
-        }
-        if (favorites.isNotEmpty()) {
+        if (items.isNotEmpty()) {
             item {
-                HomeSectionHeader(
-                    title = "Избранное",
-                    subtitle = "Сохранённые страницы и ярлыки",
-                    modifier = pad,
+                Text(
+                    SaylatStrings.homePinsAndCache(uiLanguage),
+                    modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 6.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Medium,
                 )
             }
-            items(favorites, key = { it.url }) { favorite ->
-                FavoriteRow(
-                    favorite = favorite,
-                    modifier = pad.fillMaxWidth(),
-                    onOpen = { onOpenFavorite(favorite.url) },
-                    onRemove = { onRemoveFavorite(favorite.url) },
-                    onPin = { onPinFavorite(favorite) },
-                )
-            }
-        } else {
             item {
-                EmptyFavoritesCard(
-                    modifier = pad.fillMaxWidth(),
-                    onOpenSample = { onQuickLink("https://ru.wikipedia.org/wiki/Интернет") },
-                )
-            }
-        }
-        item {
-            HomeSectionHeader(
-                title = "Поиск и прокси",
-                subtitle = "Движок, инстанс и сетевые параметры",
-                modifier = pad,
-            )
-        }
-        item {
-            Surface(
-                onClick = onOpenSearchSettings,
-                modifier = pad.fillMaxWidth(),
-                shape = RoundedCornerShape(24.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-            ) {
-                Row(
-                    Modifier.padding(horizontal = 16.dp, vertical = 15.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.surface,
                 ) {
-                    Surface(
-                        shape = RoundedCornerShape(14.dp),
-                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.65f),
-                    ) {
-                        Icon(
-                            Icons.Default.Search,
-                            null,
-                            modifier = Modifier.padding(10.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    Column(Modifier.weight(1f)) {
-                        Text("Поиск и прокси", fontWeight = FontWeight.SemiBold)
-                        Text(searchEngine.label, color = MaterialTheme.colorScheme.primary)
-                        Text(
-                            searchEngine.description,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                        )
-                    }
-                    Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
-                }
-            }
-        }
-        item {
-            HomeSectionHeader(
-                title = "Быстрые ссылки",
-                subtitle = "Готовые точки входа для чтения",
-                modifier = pad,
-            )
-        }
-        item {
-            Column(pad.then(Modifier.fillMaxWidth()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    quickLinks.forEach { link ->
-                        Surface(
-                            onClick = { onQuickLink(link.url) },
-                            shape = RoundedCornerShape(18.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.35f),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                        ) {
-                            Text(
-                                link.label,
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-                                style = MaterialTheme.typography.labelLarge,
-                            )
+                    Column {
+                        items.forEachIndexed { index, entry ->
+                            when (entry) {
+                                is HomeListEntry.Pinned -> TgPageRow(
+                                    title = entry.title.ifBlank { entry.url },
+                                    subtitle = shortenUrl(entry.url),
+                                    letter = avatarLetter(entry.title, entry.url),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    timeLabel = null,
+                                        pinned = true,
+                                        uiLanguage = uiLanguage,
+                                        onClick = { onOpenFavorite(entry.url) },
+                                    )
+                                is HomeListEntry.Cached -> {
+                                    val e = entry.entry
+                                    val kinds = buildList {
+                                        if (e.hasArticle) add(SaylatStrings.cacheKindText(uiLanguage))
+                                        if (e.hasStrips) add(SaylatStrings.cacheKindStrips(uiLanguage))
+                                    }.joinToString(" · ")
+                                    val whenText = if (System.currentTimeMillis() - e.savedAt < 86_400_000) {
+                                        dateFmt.format(Date(e.savedAt))
+                                    } else {
+                                        dateFmtDay.format(Date(e.savedAt))
+                                    }
+                                    TgPageRow(
+                                        title = e.title.ifBlank { e.url },
+                                        subtitle = buildString {
+                                            append(shortenUrl(e.url))
+                                            if (kinds.isNotBlank()) append(" · $kinds")
+                                            append(" · ${formatBytes(e.bytesOnDisk)}")
+                                        },
+                                        letter = avatarLetter(e.title, e.url),
+                                        tint = MaterialTheme.colorScheme.tertiary,
+                                        timeLabel = whenText,
+                                        pinned = false,
+                                        cached = true,
+                                        uiLanguage = uiLanguage,
+                                        onClick = { onOpenCached(e.url) },
+                                    )
+                                }
+                            }
+                            if (index < items.lastIndex) {
+                                TgRowDivider()
+                            }
                         }
                     }
                 }
             }
         }
-        if (offlineCache.isNotEmpty()) {
-            item {
-                HomeSectionHeader(
-                    title = "Офлайн-кэш",
-                    subtitle = "Недавно сохранённые страницы",
-                    modifier = pad,
-                )
-            }
-            items(offlineCache.take(8), key = { it.url }) { entry ->
-                OfflineCacheRow(
-                    entry = entry,
-                    modifier = pad.fillMaxWidth(),
-                    onClick = { onOpenCached(entry.url) },
-                )
-            }
-        }
-        if (visitHistory.isNotEmpty()) {
-            item {
-                HomeSectionHeader(
-                    title = "История",
-                    subtitle = "Недавно открытые страницы",
-                    modifier = pad,
-                )
-            }
-            items(visitHistory.take(6), key = { it.url }) { entry ->
-                Surface(
-                    onClick = { onOpenVisit(entry.url) },
-                    modifier = pad.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                ) {
-                    Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-                        Text(entry.title, maxLines = 1, style = MaterialTheme.typography.bodyMedium)
-                        Text(
-                            entry.url,
-                            maxLines = 1,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
-                        )
-                    }
-                }
-            }
-        }
-        if (recentSearches.isNotEmpty()) {
-            item {
-                HomeSectionHeader(
-                    title = "Недавние",
-                    subtitle = "Последние поисковые запросы",
-                    modifier = pad,
-                )
-            }
-            items(recentSearches.take(5), key = { it }) { q ->
-                Surface(
-                    onClick = { onRecent(q) },
-                    modifier = pad.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-                ) {
-                    Row(
-                        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(Icons.Default.Search, null, Modifier.size(18.dp))
-                        Text(q, Modifier.padding(start = 10.dp).weight(1f), maxLines = 1)
-                        Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
-                    }
-                }
-            }
-        }
+
         if (!smartLayoutAvailable) {
             item {
                 Text(
-                    "Умная вёрстка недоступна на этом устройстве (мало RAM). Базовая лента работает.",
-                    modifier = pad,
+                    SaylatStrings.homeSmartLayoutNote(uiLanguage),
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.error.copy(alpha = 0.85f),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.85f),
                 )
             }
         }
@@ -320,324 +208,126 @@ fun HomeContent(
 }
 
 @Composable
-private fun HomeSectionHeader(
-    title: String,
-    subtitle: String,
-    modifier: Modifier = Modifier,
-) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(title, fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
+private fun TgEmptyHome(uiLanguage: AppLanguage, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(
-            subtitle,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+            SaylatStrings.homeEmptyTitle(uiLanguage),
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Text(
+            SaylatStrings.homeEmptyBody(uiLanguage),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.55f),
+        )
+        Text(
+            SaylatStrings.homeSearchHint(uiLanguage),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
         )
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun EmptyFavoritesCard(
-    onOpenSample: () -> Unit,
-    modifier: Modifier = Modifier,
+private fun TgPageRow(
+    title: String,
+    subtitle: String,
+    letter: String,
+    tint: Color,
+    timeLabel: String?,
+    pinned: Boolean,
+    cached: Boolean = false,
+    uiLanguage: AppLanguage = AppLanguage.RU,
+    onClick: () -> Unit,
 ) {
-    Surface(
-        onClick = onOpenSample,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-    ) {
+    Surface(onClick = onClick, color = Color.Transparent) {
         Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Icon(Icons.Default.PushPin, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f)) {
-                Text("Избранное появится здесь", fontWeight = FontWeight.SemiBold)
-                Text(
-                    "Откройте страницу и нажмите звезду вверху, чтобы сохранить её и закрепить на рабочем столе.",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                )
-            }
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun FavoriteRow(
-    favorite: SaylatPrefs.FavoriteLink,
-    onOpen: () -> Unit,
-    onRemove: () -> Unit,
-    onPin: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        onClick = onOpen,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(tint.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    Icons.Default.PushPin,
-                    null,
-                    Modifier.padding(9.dp).size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                Text(
+                    letter,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = tint,
                 )
             }
-            Column(Modifier.weight(1f)) {
-                Text(favorite.title, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    favorite.url,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
+                    title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.52f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            IconButton(onClick = onPin) {
-                Icon(Icons.Default.PushPin, contentDescription = "Закрепить")
-            }
-            IconButton(onClick = onRemove) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = "Удалить")
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun SpeedModeStrip(
-    selected: QuickSpeedMode,
-    onSelect: (QuickSpeedMode) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(24.dp),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 0.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-    ) {
-        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
-            Text("Скорость сети", fontWeight = FontWeight.SemiBold, style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Это влияет на сеть и трафик, но не меняет способ показа страницы",
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.62f),
-            )
-            FlowRow(
-                modifier = Modifier.padding(top = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                QuickSpeedMode.entries.forEach { mode ->
-                    FilterChip(
-                        selected = selected == mode,
-                        onClick = { onSelect(mode) },
-                        label = { Text("${mode.title} · ${mode.subtitle}") },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.6f),
-                        ),
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                timeLabel?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
+                    )
+                }
+                when {
+                    pinned -> Icon(
+                        Icons.Default.PushPin,
+                        contentDescription = SaylatStrings.pinContentDescription(uiLanguage),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                    )
+                    cached -> Icon(
+                        Icons.Default.OfflinePin,
+                        contentDescription = SaylatStrings.cacheContentDescription(uiLanguage),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.55f),
                     )
                 }
             }
-            Text(
-                selected.summary,
-                modifier = Modifier.padding(top = 8.dp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-            )
         }
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun HomeHero(networkResult: NetworkTestResult?) {
+private fun TgRowDivider() {
     Box(
-        modifier = Modifier
+        Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
-                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
-                        MaterialTheme.colorScheme.background,
-                    ),
-                ),
-            )
-            .padding(horizontal = 20.dp, vertical = 18.dp),
-    ) {
-        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-            HeroChip("тонкий браузер для плохой сети")
-            Text(
-                "Saylat делает чтение сайтов, лент и сервисов легче на медленном интернете.",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Text(
-                "Сервер сжимает страницу, а на телефоне вы выбираете: лёгкий текст, полосы или страницу как на сайте.",
-                style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.74f),
-            )
-            networkResult?.takeIf { it.ok }?.profile?.let { profile ->
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    HeroChip(profile.title)
-                    networkResult.latencyMs?.let { HeroChip("отклик ${NetworkFormat.latency(it)}") }
-                    networkResult.downloadKbps?.let { HeroChip(NetworkFormat.speedKbps(it)) }
-                }
-            }
-        }
-    }
+            .padding(start = 74.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.outline.copy(alpha = 0.1f)),
+    )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun HomeServerStatusCard(
-    ready: Boolean?,
-    message: String?,
-    checking: Boolean,
-    onRetry: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val bg = when (ready) {
-        true -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.55f)
-        false -> MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.45f)
-        null -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-    }
-    if (ready == false) {
-        Card(
-            onClick = onRetry,
-            modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            colors = CardDefaults.cardColors(containerColor = bg),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        ) {
-            HomeServerStatusRow(ready, message, checking)
-        }
-    } else {
-        Surface(
-            modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(20.dp),
-            color = bg,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-        ) {
-            HomeServerStatusRow(ready, message, checking)
-        }
-    }
+private fun avatarLetter(title: String, url: String): String {
+    val fromTitle = title.trim().firstOrNull()?.uppercaseChar()?.toString()
+    if (!fromTitle.isNullOrBlank() && fromTitle.first().isLetter()) return fromTitle
+    return runCatching {
+        URI(url).host?.removePrefix("www.")?.first()?.uppercaseChar()?.toString()
+    }.getOrNull() ?: "?"
 }
 
-@Composable
-private fun HomeServerStatusRow(
-    ready: Boolean?,
-    message: String?,
-    checking: Boolean,
-) {
-    Row(
-        Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Icon(
-            when (ready) {
-                true -> Icons.Default.Speed
-                false -> Icons.Default.OfflinePin
-                null -> Icons.Default.Speed
-            },
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-        )
-        Column(Modifier.weight(1f)) {
-            Text(
-                message ?: when (ready) {
-                    true -> "Интернет через Saylat готов"
-                    false -> "Нет связи с сервером"
-                    null -> "Проверяем сервер…"
-                },
-                fontWeight = FontWeight.SemiBold,
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            if (ready == false) {
-                Text(
-                    "Нажмите, чтобы повторить",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                )
-            }
-        }
-        if (checking) {
-            androidx.compose.material3.CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
-        }
-    }
-}
-
-@Composable
-private fun HeroChip(text: String) {
-    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f)) {
-        Text(
-            text,
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelMedium,
-        )
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun OfflineCacheRow(
-    entry: PageCache.CachedEntry,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val kinds = buildList {
-        if (entry.hasArticle) add("текст")
-        if (entry.hasStrips) add("полосы")
-    }.joinToString(" · ")
-    val whenText = remember(entry.savedAt) {
-        SimpleDateFormat("d MMM, HH:mm", Locale("ru")).format(Date(entry.savedAt))
-    }
-    Surface(
-        onClick = onClick,
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.08f)),
-    ) {
-        Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Icon(Icons.Default.OfflinePin, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.primary)
-            Column(Modifier.weight(1f)) {
-                Text(
-                    entry.title.ifBlank { entry.url },
-                    fontWeight = FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                )
-                Text(
-                    "$whenText · $kinds · ${formatBytes(entry.bytesOnDisk)}",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.65f),
-                )
-            }
-            Icon(Icons.Default.ChevronRight, null, Modifier.size(18.dp))
-        }
-    }
-}
+private fun shortenUrl(url: String): String =
+    url.removePrefix("https://").removePrefix("http://").removePrefix("www.").take(42)

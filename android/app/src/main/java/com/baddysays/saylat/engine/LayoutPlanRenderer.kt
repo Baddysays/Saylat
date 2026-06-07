@@ -20,7 +20,12 @@ object LayoutPlanRenderer {
         )
 
         var imageShown = 0
-        val maxImages = maxImages(plan.density)
+        val maxImages = when (plan.source) {
+            LayoutPlanSource.AI_PROTOTYPE,
+            LayoutPlanSource.AI_GEMMA,
+            -> Int.MAX_VALUE
+            LayoutPlanSource.HEURISTIC -> maxImages(plan.density)
+        }
 
         for (idx in plan.blockOrder) {
             if (idx in plan.hideBlockIds) continue

@@ -28,11 +28,15 @@ def parse_compression_level(
 def images_mode_for_level(level: CompressionLevel, images_param: str) -> str:
     mode = (images_param or "normal").strip().lower()
     if level == "light":
-        return "off"
+        if mode == "layout":
+            return "layout"
+        return "tiny"
     if level == "medium":
-        if mode in ("off", "layout"):
+        if mode in ("off", "layout", "refs"):
             return mode
         return "tiny"
+    if level == "full" and mode == "refs":
+        return "refs"
     return mode
 
 
@@ -68,17 +72,27 @@ def _collect_links(blocks: list[Block]) -> list[ArticleLink]:
     return links
 
 
+def _block_plain_line(block: Block) -> str:
+    if block.type == "heading" and block.text:
+        return block.text.strip()
+    if block.type == "quote" and block.text:
+        return block.text.strip()
+    if block.type == "paragraph":
+        text = (block.text or "").strip()
+        if not text and block.spans:
+            text = " ".join((s.text or "").strip() for s in block.spans if (s.text or "").strip())
+        return text
+    if block.type == "list" and block.items:
+        return "\n".join(item.strip() for item in block.items if item.strip())
+    return ""
+
+
 def _plain_text_from_blocks(blocks: list[Block]) -> str:
     parts: list[str] = []
     for block in blocks:
-        if block.type == "heading" and block.text:
-            parts.append(block.text.strip())
-        elif block.type == "paragraph" and block.text:
-            parts.append(block.text.strip())
-        elif block.type == "quote" and block.text:
-            parts.append(block.text.strip())
-        elif block.type == "list" and block.items:
-            parts.extend(item.strip() for item in block.items if item.strip())
+        line = _block_plain_line(block)
+        if line:
+            parts.append(line)
     return "\n\n".join(parts)
 
 
@@ -149,12 +163,13 @@ def _to_medium(article: SaylatArticle) -> SaylatArticle:
             image_count += 1
         blocks.append(simple)
     data = article.model_dump()
+    links = _collect_links(blocks)
     data.update(
         {
             "compression_level": "medium",
             "blocks": [b.model_dump() for b in blocks],
-            "plain_text": "",
-            "links": [],
+            "plain_text": _plain_text_from_blocks(blocks),
+            "links": [link.model_dump() for link in links[:48]],
             "css_hints": None,
         }
     )

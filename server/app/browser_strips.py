@@ -43,10 +43,16 @@ def playwright_available() -> bool:
     if not settings.playwright_enabled:
         return False
     try:
-        import playwright  # noqa: F401
+        from pathlib import Path
 
-        return True
+        from playwright.sync_api import sync_playwright
     except ImportError:
+        return False
+    try:
+        with sync_playwright() as p:
+            exe = p.chromium.executable_path
+            return bool(exe and Path(exe).is_file())
+    except Exception:
         return False
 
 

@@ -1,6 +1,6 @@
 # Структура репозитория Saylat
 
-Актуальная версия приложения: **0.5.40** (`versionCode` 49) — см. [CHANGELOG.md](CHANGELOG.md).
+Актуальная версия приложения: **0.5.57** (`versionCode` 66) — см. [CHANGELOG.md](CHANGELOG.md).
 
 ```
 thin-browser/                    # монорепозиторий Saylat
@@ -14,7 +14,9 @@ thin-browser/                    # монорепозиторий Saylat
 │       ├── ui/                  # BrowserScreen, Home, Feed, TamagotchiPet, Settings…
 │       ├── data/                # Retrofit Api, модели
 │       ├── prefs/               # DataStore (SaylatPrefs, settingsBundle)
-│       ├── network/             # ConnectivityMonitor, RetryInterceptor, диагностика
+│       ├── network/             # SaylatHttpClient, RetryInterceptor, 2G-диагностика
+│       ├── tamagotchi/          # ёжик Saylat: эмоции, реплики, site reactions
+│       ├── ui/pet/              # рендер, диалоги, browser bridge
 │       ├── engine/              # умная вёрстка, мапперы лент
 │       ├── cache/               # офлайн PageCache
 │       └── update/              # OTA через GitHub / сервер

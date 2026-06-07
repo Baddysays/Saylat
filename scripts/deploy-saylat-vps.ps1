@@ -41,21 +41,29 @@ try {
         try {
             $updateRaw = [System.IO.File]::ReadAllText($UpdateJson, [System.Text.Encoding]::UTF8)
             $metaJson = $updateRaw | ConvertFrom-Json
-            if ($metaJson.version_code) { $versionCode = [int]$metaJson.version_code }
-            if ($metaJson.version_name) { $versionName = [string]$metaJson.version_name }
             if ($metaJson.release_notes) { $releaseNotes = [string]$metaJson.release_notes }
         } catch {
-            Write-Host "WARN: не удалось прочитать releases/update.json, оставляем notes по умолчанию"
+            Write-Host "WARN: could not read releases/update.json for release_notes"
         }
     }
 
-    $releaseApk = Join-Path $Root "android\app\build\outputs\apk\release\app-release.apk"
+    Write-Host "Сборка APK (clean assembleDebug)..."
+    Push-Location (Join-Path $Root "android")
+    try {
+        .\gradlew.bat clean assembleDebug --no-daemon
+    } finally {
+        Pop-Location
+    }
     $debugApk = Join-Path $Root "android\app\build\outputs\apk\debug\app-debug.apk"
-    $apk = if (Test-Path $releaseApk) { $releaseApk } elseif (Test-Path $debugApk) { $debugApk } else { $null }
-    if ($apk) {
+    if (Test-Path $debugApk) {
         $releasesDir = Join-Path $Root "server\releases"
         New-Item -ItemType Directory -Force -Path $releasesDir | Out-Null
-        Copy-Item $apk (Join-Path $releasesDir "saylat.apk") -Force
+        Copy-Item $debugApk (Join-Path $releasesDir "saylat.apk") -Force
+        $stamp = (Get-Date).ToUniversalTime().ToString("o")
+        [System.IO.File]::WriteAllText((Join-Path $releasesDir "deploy-stamp.txt"), $stamp)
+        if (-not $releaseNotes -or $releaseNotes -eq "Обновление Saylat.") {
+            $releaseNotes = "0.5.41 Saylatik: koshelek KB, magazin shlyap, myach, kachalka, 24x24 animacii."
+        }
         $meta = @{
             version_code = $versionCode
             version_name = $versionName
@@ -63,20 +71,22 @@ try {
         } | ConvertTo-Json -Compress
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText((Join-Path $releasesDir "apk-meta.json"), $meta, $utf8NoBom)
-        Write-Host "APK + apk-meta.json ($versionName / $versionCode)"
+        $apkSize = (Get-Item (Join-Path $releasesDir "saylat.apk")).Length
+        Write-Host "APK + apk-meta.json ($versionName / $versionCode) - $apkSize bytes"
     } else {
-        Write-Host "WARN: APK not found - run: cd android; .\gradlew.bat assembleRelease"
+        Write-Host "ERROR: APK not found after build"
+        exit 1
     }
 
     tar -czf $Archive --exclude="server/.venv" --exclude="**/__pycache__" docker-compose.yml server
     ssh "${User}@${ServerHost}" "mkdir -p $RemoteDir"
     scp $Archive "${User}@${ServerHost}:${RemoteDir}/saylat-deploy.tgz"
-    $remoteCmd = "set -e; cd $RemoteDir; tar xzf saylat-deploy.tgz; docker compose up -d --build; sleep 3; curl -fsS http://127.0.0.1:8787/health"
+    $remoteCmd = "set -e; cd $RemoteDir; tar xzf saylat-deploy.tgz; docker compose build --no-cache; docker compose up -d; sleep 3; curl -fsS http://127.0.0.1:8787/health"
     ssh "${User}@${ServerHost}" $remoteCmd
     Write-Host ""
     Write-Host "Личный Saylat: http://${ServerHost}:8787/"
     Write-Host "APK (только для вас): http://${ServerHost}:8787/app/download/saylat.apk"
-    Write-Host "Закройте порт 8787 в файрволе для чужих IP — см. docs/LICHNYI-SERVER.md"
+    Write-Host "Firewall: close port 8787 for strangers - see docs/LICHNYI-SERVER.md"
 } finally {
     Pop-Location
 }

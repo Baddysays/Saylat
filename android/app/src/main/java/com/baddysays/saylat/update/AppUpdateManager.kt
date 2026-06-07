@@ -32,16 +32,45 @@ class AppUpdateManager(private val context: Context) {
         .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
-    /** Проверка обновления через GitHub (releases/update.json), не через ваш VPS. */
-    suspend fun checkForUpdate(): UpdateCheckResult = withContext(Dispatchers.IO) {
-        val info = fetchGithubUpdateInfo()
-        if (info.version_code > BuildConfig.VERSION_CODE) {
-            UpdateCheckResult.Available(info)
-        } else {
-            UpdateCheckResult.UpToDate(
-                serverVersionCode = info.version_code,
-                serverVersionName = info.version_name,
-            )
+    /** Сначала VPS (/api/app/update), иначе GitHub update.json. */
+    suspend fun checkForUpdate(serverUrl: String = BuildConfig.PUBLIC_SERVER_URL): UpdateCheckResult =
+        withContext(Dispatchers.IO) {
+            val info = fetchUpdateInfo(serverUrl)
+            if (info.version_code > BuildConfig.VERSION_CODE) {
+                UpdateCheckResult.Available(info)
+            } else {
+                UpdateCheckResult.UpToDate(
+                    serverVersionCode = info.version_code,
+                    serverVersionName = info.version_name,
+                )
+            }
+        }
+
+    private fun fetchUpdateInfo(serverUrl: String): AppUpdateInfo {
+        val base = serverUrl.trim().trimEnd('/')
+        if (base.startsWith("http")) {
+            try {
+                return fetchUpdateFromUrl("$base/api/app/update")
+            } catch (_: Exception) {
+                /* fallback GitHub */
+            }
+        }
+        return fetchGithubUpdateInfo()
+    }
+
+    private fun fetchUpdateFromUrl(url: String): AppUpdateInfo {
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .build()
+        http.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IllegalStateException("update API: HTTP ${response.code}")
+            }
+            val body = response.body?.string()?.trim().orEmpty()
+            if (body.isBlank()) throw IllegalStateException("Пустой ответ update API")
+            return updateAdapter.fromJson(body)
+                ?: throw IllegalStateException("Не удалось разобрать update API")
         }
     }
 

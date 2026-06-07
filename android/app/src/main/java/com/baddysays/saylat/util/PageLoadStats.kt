@@ -24,10 +24,17 @@ object PageLoadStats {
     fun fromStats(stats: ArticleStats): PageLoadBanner {
         val original = stats.original_bytes
         val payload = stats.payload_bytes
-        val pct = savingsPercent(original, payload)
+        val wire = stats.wire_bytes
+        val received = if (wire > 0) wire else payload
+        val pct = savingsPercent(original, received)
         val headline = buildString {
             append("Лента: ")
-            append(formatBytes(payload))
+            append(formatBytes(received))
+            if (wire > 0 && payload > wire) {
+                append(" (распак. ")
+                append(formatBytes(payload))
+                append(")")
+            }
             if (original > 0) {
                 append(" · оригинал ")
                 append(formatBytes(original))
@@ -35,7 +42,7 @@ object PageLoadStats {
         }
         val comparison = when {
             pct != null -> "На $pct% меньше оригинала · ${stats.fetch_ms} мс на сервере"
-            original > 0 && payload > 0 -> "Загрузка ${stats.fetch_ms} мс · без сжатия по объёму"
+            original > 0 && received > 0 -> "Загрузка ${stats.fetch_ms} мс · без сжатия по объёму"
             stats.fetch_ms > 0 -> "Обработка на сервере: ${stats.fetch_ms} мс"
             else -> "Страница готова"
         }
@@ -44,8 +51,9 @@ object PageLoadStats {
                 add("Картинок не грузили: ${stats.images_omitted} (макет сохранён)")
             }
             if (stats.images_inlined > 0) add("JPEG с сервера: ${stats.images_inlined}")
-            if (original > 0 && payload > 0) {
-                val saved = (original - payload).coerceAtLeast(0)
+            if (wire > 0) add("По сети (сжато): ${formatBytes(wire)}")
+            if (original > 0 && received > 0) {
+                val saved = (original - received).coerceAtLeast(0)
                 if (saved > 0) add("Экономия трафика: ${formatBytes(saved)}")
             }
         }.joinToString(" · ").ifBlank { null }

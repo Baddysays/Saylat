@@ -4,6 +4,7 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
+    id("org.jetbrains.kotlin.plugin.serialization")
 }
 
 val localProps = Properties().apply {
@@ -24,8 +25,8 @@ android {
         applicationId = "com.baddysays.saylat"
         minSdk = 26
         targetSdk = 35
-        versionCode = 49
-        versionName = "0.5.40"
+        versionCode = 66
+        versionName = "0.5.57"
         buildConfigField("String", "PUBLIC_SERVER_URL", saylatServerUrlField)
         buildConfigField("String", "PROXY_API_KEY", saylatApiKeyField)
         buildConfigField(
@@ -79,12 +80,16 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
     implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
 
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-moshi:2.11.0")
     implementation("com.squareup.moshi:moshi-kotlin:1.15.1")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("com.github.luben:zstd-jni:1.5.6-4")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    testImplementation("junit:junit:4.13.2")
 }

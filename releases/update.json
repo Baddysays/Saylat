@@ -1,7 +1,7 @@
 {
-  "version_code": 49,
-  "version_name": "0.5.40",
-  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.40/saylat.apk",
-  "release_notes": "0.5.40 — тамагочи при загрузке:\n\n• Пиксельный питомец появляется, если страница грузится >10 сек\n• Здоровье, сытость, внимание — ухаживайте тапом и салатиками\n• Кнопка «Готово» по загрузке страницы\n• Настройка: можно отключить в настройках приложения",
+  "version_code": 66,
+  "version_name": "0.5.57",
+  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.57/saylat.apk",
+  "release_notes": "0.5.57 — 2G и кириллица\n\n• Надёжное соединение на 2G/EDGE: длинные таймауты, повторы запросов, автоопределение медленного cellular\n• Сервер ждёт upstream до 90 с при X-Saylat-Slow-Network\n• Правильная кодировка русских сайтов (cp1251, koi8-r), JSON с charset=utf-8\n• Питомец Saylat: ёжик 48×48, реплики при загрузке, wire-сжатие gzip/zstd",
   "mandatory": false
 }

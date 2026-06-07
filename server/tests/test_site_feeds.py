@@ -3,6 +3,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+from tests.extract_helpers import unwrap_extract_article
+
 client = TestClient(app)
 
 
@@ -34,8 +36,9 @@ def test_extract_pikabu_via_compat():
     r = client.get(
         "/api/extract",
         params={"url": "https://pikabu.ru/", "images": "off"},
+        headers={"X-Saylat-Payload-Codec": "identity"},
     )
     assert r.status_code == 200
-    data = r.json()
-    assert data["layout_hint"] == "feed"
-    assert len(data["blocks"]) >= 1
+    article = unwrap_extract_article(r.json())
+    assert article["layout_hint"] == "feed"
+    assert len(article["blocks"]) >= 1

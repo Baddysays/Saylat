@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Saylat — чистый контент вместо тяжелого веба</title>
+  <meta name="description" content="Saylat: личный thin-browser для медленной сети. Сжатие на сервере, быстрый UX на телефоне." />
+  <style>
+    :root{
+      --bg:#ffffff; --text:#0f172a; --muted:#475569; --line:#e2e8f0;
+      --brand:#0f766e; --brand-soft:#ecfeff; --accent:#2563eb;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,Segoe UI,system-ui,sans-serif;background:var(--bg);color:var(--text);line-height:1.55}
+    .wrap{width:min(1080px,92%);margin:0 auto}
+    header{padding:16px 0;border-bottom:1px solid var(--line)}
+    .row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{display:flex;align-items:center;gap:10px;font-weight:900;letter-spacing:.3px}
+    .brand img{width:28px;height:28px}
+    nav a{text-decoration:none;color:#0f172a;font-weight:600;margin-left:14px}
+    .hero{padding:52px 0 24px}
+    .badge{display:inline-block;padding:6px 10px;background:var(--brand-soft);border:1px solid #a5f3fc;color:#0f766e;border-radius:999px;font-size:13px;font-weight:700}
+    h1{font-size:clamp(34px,6vw,58px);line-height:1.05;margin:14px 0}
+    .lead{font-size:21px;color:var(--muted);max-width:760px}
+    .cta{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+    .btn{padding:12px 17px;border-radius:11px;text-decoration:none;font-weight:800}
+    .btn-main{background:var(--brand);color:#f0fdfa}
+    .btn-lite{background:#eff6ff;color:#1e3a8a;border:1px solid #bfdbfe}
+    .layout{display:grid;grid-template-columns:1.05fr .95fr;gap:14px;padding:22px 0}
+    .card{border:1px solid var(--line);border-radius:14px;background:#fff;padding:14px}
+    .card h2{margin:0 0 8px;font-size:28px}
+    .card h3{margin:0 0 6px;font-size:19px}
+    .stack{display:grid;gap:10px}
+    .mini{border:1px solid var(--line);border-radius:12px;padding:12px}
+    .mini p{margin:0;color:var(--muted)}
+    .phone img,.compare img{width:100%;display:block;border-radius:10px}
+    .phone{padding:8px}
+    .steps{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .step{background:#f8fafc;border:1px solid var(--line);border-radius:12px;padding:12px}
+    .step b{display:block;margin-bottom:6px}
+    .install{margin-top:12px;padding:12px;background:#0f172a;color:#e2e8f0;border-radius:10px;overflow:auto;white-space:nowrap;font-family:ui-monospace,Consolas,monospace}
+    .compare{margin-top:8px}
+    footer{padding:26px 0 44px;color:var(--muted);font-size:14px}
+    a{color:var(--accent)}
+    @media (max-width:950px){.layout,.steps{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap row">
+      <div class="brand"><img src="../../docs/assets/saylat-logo.png" alt="Saylat"/><span>SAYLAT</span></div>
+      <nav>
+        <a href="https://github.com/Baddysays/Saylat">GitHub</a>
+        <a href="https://github.com/Baddysays/Saylat/releases/latest">APK</a>
+        <a href="https://github.com/Baddysays/Saylat/discussions">Discussions</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="hero">
+      <span class="badge">личный сервер · слабая сеть · Android</span>
+      <h1>Saylat убирает лишнее и оставляет смысл</h1>
+      <p class="lead">Вместо тяжелого веба вы получаете удобный контент-поток: быстрее загрузка, меньше трафика, стабильнее чтение на 2G/EDGE.</p>
+      <div class="cta">
+        <a class="btn btn-main" href="https://github.com/Baddysays/Saylat/releases/latest">Скачать APK</a>
+        <a class="btn btn-lite" href="https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh">Установка одной командой</a>
+      </div>
+    </section>
+
+    <section class="layout">
+      <article class="card stack">
+        <h2>Почему это работает</h2>
+        <div class="mini">
+          <h3>Серверный слой</h3>
+          <p>Ваш VPS забирает страницу и оптимизирует структуру под слабый канал.</p>
+        </div>
+        <div class="mini">
+          <h3>Клиентский слой</h3>
+          <p>Приложение показывает легкий рендер, STRIPS и ссылки без перегруза интерфейса.</p>
+        </div>
+        <div class="mini">
+          <h3>Контроль</h3>
+          <p>Вы сами управляете адресом сервера, ключами и доступом.</p>
+        </div>
+      </article>
+      <article class="card phone">
+        <img src="../../docs/assets/screenshots/settings-themes-dark.png" alt="Настройки Saylat" />
+      </article>
+    </section>
+
+    <section class="card">
+      <h2 style="margin-bottom:10px">Путь за 4 шага</h2>
+      <div class="steps">
+        <div class="step"><b>1</b>Поднимите сервер скриптом</div>
+        <div class="step"><b>2</b>Установите APK на телефон</div>
+        <div class="step"><b>3</b>Укажите `http://IP:8787`</div>
+        <div class="step"><b>4</b>Выберите режим чтения</div>
+      </div>
+      <div class="install">curl -fsSL https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh | bash</div>
+    </section>
+
+    <section class="card compare">
+      <h2>Обычный браузер vs Saylat</h2>
+      <img src="../../docs/assets/screenshots/browser-vs-saylat.svg" alt="Сравнение обычного браузера и Saylat" />
+    </section>
+  </main>
+
+  <footer class="wrap">
+    MIT · <a href="https://github.com/Baddysays/Saylat/blob/main/CONTRIBUTING.md">Contributing</a> ·
+    <a href="https://github.com/Baddysays/Saylat/issues">Issues</a>
+  </footer>
+</body>
+</html>

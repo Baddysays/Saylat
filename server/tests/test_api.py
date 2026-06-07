@@ -4,6 +4,8 @@ from fastapi.testclient import TestClient
 
 from app.main import app
 
+from tests.extract_helpers import unwrap_extract_article
+
 client = TestClient(app)
 
 
@@ -24,6 +26,13 @@ def test_app_update():
     assert "saylat.apk" in data["apk_url"]
 
 
+def test_health_matches_app_update_version():
+    health = client.get("/health").json()
+    update = client.get("/api/app/update").json()
+    assert health["app_version_code"] == update["version_code"]
+    assert health["app_version_name"] == update["version_name"]
+
+
 def test_bench_lite():
     r = client.get("/api/bench/lite")
     assert r.status_code == 200
@@ -37,10 +46,53 @@ def test_extract_example():
     )
     assert r.status_code == 200
     data = r.json()
-    assert data["url"]
-    assert data["title"]
-    assert isinstance(data["blocks"], list)
-    assert data["stats"]["payload_bytes"] > 0
+    article = data.get("article")
+    if article is None and data.get("wire"):
+        from app.payload_codec import decompress_article
+        from app.models import WireCompressedPayload
+
+        article = decompress_article(WireCompressedPayload.model_validate(data["wire"])).model_dump()
+    assert article["url"]
+    assert article["title"]
+    assert isinstance(article["blocks"], list)
+    assert article["stats"]["payload_bytes"] > 0
+
+
+def test_extract_binary_endpoint():
+    r = client.get(
+        "/api/extract/binary",
+        params={"url": "https://example.com", "images": "off", "level": "medium"},
+        headers={"X-Saylat-Payload-Codec": "gzip-binary,zstd-binary"},
+    )
+    assert r.status_code == 200
+    codec = r.headers.get("x-saylat-payload-codec", "")
+    assert codec or "json" in r.headers.get("content-type", "")
+    if codec and codec != "identity":
+        from app.payload_codec import decompress_payload_bytes
+
+        wire = int(r.headers.get("x-saylat-wire-bytes", "0"))
+        raw = int(r.headers.get("x-saylat-uncompressed-bytes", "0"))
+        article = decompress_payload_bytes(r.content, codec, wire, raw)
+        assert article.title
+    else:
+        data = r.json()
+        article = data.get("article") or data
+        assert article.get("title") or article["title"]
+
+
+def test_extract_wire_codec():
+    r = client.get(
+        "/api/extract",
+        params={"url": "https://example.com", "images": "off", "level": "medium"},
+        headers={"X-Saylat-Payload-Codec": "gzip-b64"},
+    )
+    assert r.status_code == 200
+    data = r.json()
+    if data.get("wire"):
+        assert data["wire"]["wire_bytes"] > 0
+        assert data["wire"]["wire_bytes"] <= data["wire"]["uncompressed_bytes"]
+    else:
+        assert data.get("article")
 
 
 def test_search_requires_query():
@@ -54,8 +106,8 @@ def test_extract_layout_keeps_image_placeholders():
         params={"url": "https://example.com", "images": "layout"},
     )
     assert r.status_code == 200
-    data = r.json()
-    assert data["stats"]["images_inlined"] == 0
+    article = unwrap_extract_article(r.json())
+    assert article["stats"]["images_inlined"] == 0
 
 
 def test_search_returns_web_hits():

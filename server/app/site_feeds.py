@@ -58,17 +58,25 @@ def _clean_line(text: str, limit: int = 280) -> str:
     return text
 
 
-async def _fetch_html(url: str, *, mobile: bool = True) -> tuple[str, int]:
+async def _fetch_html(
+    url: str,
+    *,
+    mobile: bool = True,
+    timeout_sec: float | None = None,
+) -> tuple[str, int, int]:
     started = time.perf_counter()
     fetch_url = normalize_fetch_url(url)
     ua = ua_for_url(fetch_url) if is_vk_url(fetch_url) else (
         CHROME_MOBILE_UA if mobile else CHROME_DESKTOP_UA
     )
     headers = {"User-Agent": ua}
+    timeout = timeout_sec or settings.request_timeout_sec
+    from .http_text import decode_response_text
+
     async with httpx.AsyncClient(follow_redirects=True, headers=headers) as client:
-        resp = await client.get(fetch_url, timeout=settings.request_timeout_sec)
+        resp = await client.get(fetch_url, timeout=timeout)
         resp.raise_for_status()
-        html = resp.text[: settings.max_html_bytes]
+        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
         ms = int((time.perf_counter() - started) * 1000)
         return html, len(resp.content), ms
 
@@ -121,26 +129,31 @@ def feed_to_article(url: str, feed: SaylatFeed, *, original_bytes: int = 0, fetc
     return payload
 
 
-async def try_open_site(url: str, *, images_mode: str = "normal") -> OpenResponse | None:
+async def try_open_site(
+    url: str,
+    *,
+    images_mode: str = "normal",
+    timeout_sec: float | None = None,
+) -> OpenResponse | None:
     url = _normalize_url(url)
     host = _host(url)
     if host in PIKABU_HOSTS:
-        return await _open_pikabu(url, images_mode=images_mode)
+        return await _open_pikabu(url, images_mode=images_mode, timeout_sec=timeout_sec)
     if host in VK_HOSTS:
-        return await _open_vk(url, images_mode=images_mode)
+        return await _open_vk(url, images_mode=images_mode, timeout_sec=timeout_sec)
     if host in DZEN_HOSTS:
-        return await _open_dzen(url, images_mode=images_mode)
+        return await _open_dzen(url, images_mode=images_mode, timeout_sec=timeout_sec)
     return None
 
 
-async def _open_pikabu(url: str, *, images_mode: str) -> OpenResponse:
+async def _open_pikabu(url: str, *, images_mode: str, timeout_sec: float | None = None) -> OpenResponse:
     path = urlparse(url).path.rstrip("/") or "/"
     if path.startswith("/story/"):
-        article = await extract_article(url, images_mode=images_mode)
+        article = await extract_article(url, images_mode=images_mode, timeout_sec=timeout_sec)
         return OpenResponse(kind="article", article=article)
 
     feed_url = url if path in {"/", "/new", "/hot", "/best"} else "https://pikabu.ru/"
-    html, original_bytes, fetch_ms = await _fetch_html(feed_url)
+    html, original_bytes, fetch_ms = await _fetch_html(feed_url, timeout_sec=timeout_sec)
     soup = BeautifulSoup(html, "lxml")
     seen: set[str] = set()
     items: list[FeedItem] = []
@@ -196,7 +209,7 @@ async def _open_pikabu(url: str, *, images_mode: str) -> OpenResponse:
     )
 
 
-async def _open_vk(url: str, *, images_mode: str) -> OpenResponse:
+async def _open_vk(url: str, *, images_mode: str, timeout_sec: float | None = None) -> OpenResponse:
     parsed = urlparse(url)
     path = parsed.path.rstrip("/") or "/"
     host = parsed.hostname or "vk.com"
@@ -207,7 +220,7 @@ async def _open_vk(url: str, *, images_mode: str) -> OpenResponse:
         owner, post = wall_match.groups()
         wall_url = f"https://vk.com/wall{owner}_{post}"
         try:
-            article = await extract_article(wall_url, images_mode=images_mode)
+            article = await extract_article(wall_url, images_mode=images_mode, timeout_sec=timeout_sec)
             if article.blocks and not article.blocks[0].text.startswith("Не удалось"):
                 return OpenResponse(kind="article", article=article)
         except Exception:
@@ -218,6 +231,7 @@ async def _open_vk(url: str, *, images_mode: str) -> OpenResponse:
             article = await extract_article(
                 url if host in ("vk.com", "vk.ru") else f"https://vk.com{path}",
                 images_mode=images_mode,
+                timeout_sec=timeout_sec,
             )
             return OpenResponse(kind="article", article=article)
         except Exception:
@@ -226,7 +240,7 @@ async def _open_vk(url: str, *, images_mode: str) -> OpenResponse:
     profile_match = re.match(r"^/(id\d+|[\w.]+|public\d+)$", path)
     if profile_match and path not in {"/feed", "/login", "/join"}:
         profile_url = f"https://vk.com{path}"
-        items = await _vk_profile_items(profile_url)
+        items = await _vk_profile_items(profile_url, timeout_sec=timeout_sec)
         if items:
             return _feed_response(
                 source="vk",
@@ -274,6 +288,7 @@ async def _open_vk(url: str, *, images_mode: str) -> OpenResponse:
         article = await extract_article(
             f"https://vk.com{path}" if host in ("vk.com", "vk.ru") else url,
             images_mode=images_mode,
+            timeout_sec=timeout_sec,
         )
         return OpenResponse(kind="article", article=article)
     except Exception:
@@ -296,9 +311,9 @@ async def _open_vk(url: str, *, images_mode: str) -> OpenResponse:
         )
 
 
-async def _vk_profile_items(profile_url: str) -> list[FeedItem]:
+async def _vk_profile_items(profile_url: str, *, timeout_sec: float | None = None) -> list[FeedItem]:
     try:
-        html, _, fetch_ms = await _fetch_html(profile_url)
+        html, _, fetch_ms = await _fetch_html(profile_url, timeout_sec=timeout_sec)
     except Exception:
         return []
     items: list[FeedItem] = []
@@ -330,15 +345,15 @@ async def _vk_profile_items(profile_url: str) -> list[FeedItem]:
     return items
 
 
-async def _open_dzen(url: str, *, images_mode: str) -> OpenResponse:
+async def _open_dzen(url: str, *, images_mode: str, timeout_sec: float | None = None) -> OpenResponse:
     path = urlparse(url).path.rstrip("/") or "/"
 
     if path.startswith("/a/") or path.startswith("/video/"):
-        article = await extract_article(url, images_mode=images_mode)
+        article = await extract_article(url, images_mode=images_mode, timeout_sec=timeout_sec)
         return OpenResponse(kind="article", article=article)
 
     if path.startswith("/news/story/"):
-        article = await extract_article(url, images_mode=images_mode)
+        article = await extract_article(url, images_mode=images_mode, timeout_sec=timeout_sec)
         return OpenResponse(kind="article", article=article)
 
     news_url = "https://dzen.ru/news"
@@ -346,6 +361,7 @@ async def _open_dzen(url: str, *, images_mode: str) -> OpenResponse:
         html, original_bytes, fetch_ms = await _fetch_html(
             news_url if path.startswith("/news") else url,
             mobile=False,
+            timeout_sec=timeout_sec,
         )
         items = _dzen_parse_news_html(html, news_url)
         if not items:
@@ -379,7 +395,7 @@ async def _open_dzen(url: str, *, images_mode: str) -> OpenResponse:
             fetch_ms=fetch_ms,
         )
 
-    article = await extract_article(url, images_mode=images_mode)
+    article = await extract_article(url, images_mode=images_mode, timeout_sec=timeout_sec)
     return OpenResponse(kind="article", article=article)
 
 

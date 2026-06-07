@@ -9,91 +9,94 @@
 [![Release APK](https://github.com/Baddysays/Saylat/actions/workflows/release-apk.yml/badge.svg)](https://github.com/Baddysays/Saylat/actions/workflows/release-apk.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Легче салата** — сайт обрабатывается на **вашем сервере**, а телефон получает сжатый и удобный контент.
+**Легче салата** — сайт обрабатывается на **вашем сервере**, телефон получает сжатый и удобный контент.
 
-Привет! 👋 Это проект для тех, у кого интернет медленный, а телефон хочется использовать по-настоящему: сайты, Telegram, VK и почта — без лишних мегабайт.
+Привет! 👋 Saylat для тех, у кого интернет медленный: сайты, Telegram, VK и почта — без лишних мегабайт.
 
 *by **baddysays*** · ✉️ [hello@baddysays.ru](mailto:hello@baddysays.ru) · 💬 [@baddysays](https://t.me/baddysays)
 
-**Текущий релиз:** [0.5.40](https://github.com/Baddysays/Saylat/releases/tag/v0.5.40) (build 49) — [что нового](docs/CHANGELOG.md)
+**Текущий релиз:** [0.5.57](https://github.com/Baddysays/Saylat/releases/tag/v0.5.57) (build 66) — [что нового](docs/CHANGELOG.md)
 
 ## Что это
 
-Saylat — это personal-first браузер и контент-хаб:
+Saylat — personal-first браузер и контент-хаб:
 
-- сервер на вашем VPS вытягивает страницу/ленту и сжимает payload;
-- Android-клиент показывает нативный экран без тяжёлого full-WebView по умолчанию;
-- для медленной сети есть режимы Light / Medium / Full и STRIPS.
+- VPS вытягивает страницу или ленту и сжимает payload (gzip/zstd wire);
+- Android показывает нативный экран без тяжёлого full-WebView по умолчанию;
+- режимы **Light / Medium / Full**, STRIPS и умная вёрстка под слабый телефон.
 
 ## 🚀 Возможности
 
-- 📡 **Три уровня сжатия** (Light / Medium / Full) — подстраиваются под скорость сети
-- 🌐 **Тонкий браузер** — текстовый рендер + режим STRIPS (скриншот-полосы)
-- 💬 **Telegram, VK, почта** — ленты и ответы через VPS (токены не в APK)
-- 📦 **Офлайн-кэш** — недавно прочитанное остаётся на телефоне
-- 🐣 **Тамагочи** — питомец, пока страница грузится в медленной сети (можно отключить)
-- 🔄 **Обновления** — APK с [GitHub Releases](https://github.com/Baddysays/Saylat/releases/latest) (`saylat.apk`)
+- 📡 **Три уровня сжатия** — Light для 2G, Full для быстрой сети
+- 🌐 **Тонкий браузер** — текстовый рендер + STRIPS (полосы скриншотов)
+- 🦔 **Saylat** — пиксельный ёжик-тамагочи, пока страница грузится (можно отключить)
+- 💬 **Telegram, VK, почта** — ленты через VPS (токены не в APK)
+- 📦 **Офлайн-кэш** — недавно прочитанное на телефоне
+- 🔄 **Обновления** — APK с [GitHub Releases](https://github.com/Baddysays/Saylat/releases/latest)
 
-## ⚡ Быстрая установка (одной командой)
+## ⚡ Быстрая установка
+
+**Сервер (VPS или домашний ПК):**
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh | bash
 ```
 
-После установки:
+**Телефон:**
 
-1. Откройте на телефоне [последний релиз APK](https://github.com/Baddysays/Saylat/releases/latest)
-2. В приложении укажите сервер: `http://ВАШ_IP:8787`
+1. [Скачать APK](https://github.com/Baddysays/Saylat/releases/latest) (`saylat.apk`)
+2. При первом запуске указать сервер: `http://ВАШ_IP:8787`
+3. На 2G/EDGE оставить **«Режим 2G»** включённым в настройках
 
-## 🏠 Личный сервер (не публичный сервис)
+## 🏠 Личный сервер
 
-Saylat — это **ваш** прокси на VPS или домашнем ПК, а не общий хостинг для всех.
+Saylat — **ваш** прокси, а не общий хостинг.
 
 | Шаг | Действие |
 |-----|----------|
-| 🖥️ Сервер | `curl -fsSL https://raw.githubusercontent.com/Baddysays/Saylat/main/scripts/install-saylat-server.sh \| bash` |
-| 📱 Телефон | [Скачать APK](https://github.com/Baddysays/Saylat/releases/latest) → при первом запуске указать `http://ВАШ_IP:8787` |
+| 🖥️ Сервер | `install-saylat-server.sh` или `docker compose up -d --build` |
+| 📱 Телефон | APK → URL сервера в настройках |
+| 🔒 Доступ | Закройте порт 8787 для чужих — см. [LICHNYI-SERVER.md](docs/LICHNYI-SERVER.md) |
 
-📚 Подробнее: [для пользователя](docs/DLYA-POLZOVATELYA.md) · [сервер](docs/SERVER-SETUP.md) · [файрвол](docs/LICHNYI-SERVER.md) · [мессенджеры](docs/MESSENGERS.md)
+📚 [Для пользователя](docs/DLYA-POLZOVATELYA.md) · [Сервер](docs/SERVER-SETUP.md) · [Мессенджеры](docs/MESSENGERS.md)
 
-Публичный IP в открытый git не кладём — только у вас в `local.properties` / `.env`.
+Публичный IP в git не кладём — только в `local.properties` / `.env` на вашей машине.
 
-## 📸 Как это выглядит
+## 📸 Скриншоты
 
 <p align="center">
-  <img src="docs/assets/screenshots/v3-hero-home.png" width="220" alt="Saylat: главный экран и режимы скорости" />
-  <img src="docs/assets/screenshots/v3-reader-mode.png" width="220" alt="Saylat: режим чтения" />
-  <img src="docs/assets/screenshots/v3-strips-mode.png" width="220" alt="Saylat: режим STRIPS" />
+  <img src="docs/assets/screenshots/v3-hero-home.png" width="220" alt="Главный экран" />
+  <img src="docs/assets/screenshots/v3-reader-mode.png" width="220" alt="Читалка" />
+  <img src="docs/assets/screenshots/v3-strips-mode.png" width="220" alt="STRIPS" />
 </p>
 <p align="center">
-  <img src="docs/assets/screenshots/v3-search-mode.png" width="220" alt="Saylat: поиск" />
-  <img src="docs/assets/screenshots/v3-settings-light.png" width="220" alt="Saylat: настройки и темы" />
+  <img src="docs/assets/screenshots/v3-search-mode.png" width="220" alt="Поиск" />
+  <img src="docs/assets/screenshots/v3-settings-light.png" width="220" alt="Настройки" />
 </p>
 
-## 🌍 Сайт проекта
+## 🌍 Сайт
 
-- Лендинг: [https://saylat.baddysays.ru](https://saylat.baddysays.ru)
-- Исходники лендинга: `website/v3`
-- Деплой: `website/README.md`
+- [saylat.baddysays.ru](https://saylat.baddysays.ru) — лендинг (`website/v3`)
 
-## 🔧 Быстрый старт (для разработчиков)
+## 🔧 Разработка
 
 ```bash
 git clone https://github.com/Baddysays/Saylat.git
 cd Saylat/server
-python -m venv .venv && source .venv/bin/activate   # Windows: .\.venv\Scripts\Activate.ps1
+python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python run.py
 ```
 
-🐳 Docker из корня репозитория:
-
 ```bash
+# из корня
 docker compose up -d --build
+cd server && python -m pytest tests -q
+cd android && ./gradlew testDebugUnitTest
 ```
 
-🤖 Android: папка `android/`, пример настроек — `android/local.properties.example`.
+Android: `android/local.properties.example` → `local.properties` (URL сервера опционально).
 
 ## 📖 Документация
 
@@ -101,30 +104,17 @@ docker compose up -d --build
 |----------|--------|
 | [docs/CHANGELOG.md](docs/CHANGELOG.md) | История версий |
 | [docs/STRUCTURE.md](docs/STRUCTURE.md) | Структура репозитория |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Планы и статус |
-| [docs/REQUIREMENTS.md](docs/REQUIREMENTS.md) | Требования |
 | [docs/COMPRESSION_LEVELS.md](docs/COMPRESSION_LEVELS.md) | Light / Medium / Full |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | Как помочь проекту |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Планы |
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Как помочь |
 | [shared/article.schema.json](shared/article.schema.json) | Контракт API |
 
 ## 🤝 Обратная связь
 
-Будем рады любой помощи — от звезды ⭐ до кода.
-
-- ✉️ Почта: [hello@baddysays.ru](mailto:hello@baddysays.ru)
-- 💬 Telegram: [@baddysays](https://t.me/baddysays)
-- 💬 [Discussions](https://github.com/Baddysays/Saylat/discussions) — [вопрос](https://github.com/Baddysays/Saylat/discussions/new?category=general) · [идея](https://github.com/Baddysays/Saylat/discussions/new?category=ideas) · [Q&A](https://github.com/Baddysays/Saylat/discussions/new?category=q-a)
-- 🐛 [Issues](https://github.com/Baddysays/Saylat/issues) — ошибки
-- 🔧 Pull request — см. [CONTRIBUTING.md](CONTRIBUTING.md)
-
-## 🧩 Как внести вклад
-
-1. Сделайте fork репозитория
-2. Создайте ветку: `feature/your-change`
-3. Добавьте изменения + тесты
-4. Откройте Pull Request
-
-Подробно: [CONTRIBUTING.md](CONTRIBUTING.md)
+- ✉️ [hello@baddysays.ru](mailto:hello@baddysays.ru)
+- 💬 [@baddysays](https://t.me/baddysays)
+- 💬 [Discussions](https://github.com/Baddysays/Saylat/discussions)
+- 🐛 [Issues](https://github.com/Baddysays/Saylat/issues)
 
 ## 📜 Лицензия
 

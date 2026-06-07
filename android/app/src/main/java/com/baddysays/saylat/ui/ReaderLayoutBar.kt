@@ -12,14 +12,18 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.baddysays.saylat.prefs.AppLanguage
+import com.baddysays.saylat.ui.strings.SaylatStrings
 
 @Composable
 fun ReaderLayoutBar(
     useSmart: Boolean,
     smartAvailable: Boolean,
     enhancing: Boolean,
+    uiLanguage: AppLanguage = AppLanguage.RU,
     onSelectBaseline: () -> Unit,
     onSelectSmart: () -> Unit,
+    onSmartUnavailable: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -36,8 +40,11 @@ fun ReaderLayoutBar(
         )
         FilterChip(
             selected = useSmart,
-            onClick = onSelectSmart,
-            enabled = smartAvailable && !enhancing,
+            onClick = {
+                if (!smartAvailable) onSmartUnavailable()
+                else onSelectSmart()
+            },
+            enabled = !enhancing,
             label = { Text(if (enhancing) "Умная…" else "Умная") },
             shape = RoundedCornerShape(12.dp),
             colors = FilterChipDefaults.filterChipColors(

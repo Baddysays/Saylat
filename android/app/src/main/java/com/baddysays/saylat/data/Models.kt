@@ -103,7 +103,23 @@ data class TranslateResponse(
 data class ArticleStats(
     val original_bytes: Int = 0,
     val payload_bytes: Int = 0,
+    val wire_bytes: Int = 0,
     val images_inlined: Int = 0,
     val images_omitted: Int = 0,
     val fetch_ms: Int = 0,
+)
+
+@JsonClass(generateAdapter = true)
+data class WireCompressedPayload(
+    val codec: String = "gzip-b64",
+    val wire_bytes: Int = 0,
+    val uncompressed_bytes: Int = 0,
+    val data: String = "",
+)
+
+/** Ответ /api/extract: статья или сжатый wire. */
+@JsonClass(generateAdapter = true)
+data class ArticleWireEnvelope(
+    val article: SaylatArticle? = null,
+    val wire: WireCompressedPayload? = null,
 )

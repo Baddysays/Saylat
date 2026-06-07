@@ -22,7 +22,7 @@ from .models import (
 from .search import search_web
 
 
-async def open_resource(req: OpenRequest) -> OpenResponse:
+async def open_resource(req: OpenRequest, *, timeout_sec: float | None = None) -> OpenResponse:
     target = req.target
     rid = (req.resource_id or "").strip() or None
 
@@ -32,13 +32,13 @@ async def open_resource(req: OpenRequest) -> OpenResponse:
             raise HTTPException(status_code=400, detail="url required for target=url")
         level = req.level
         images_mode = images_mode_for_level(level, req.images)
-        opened = await try_open_site(url, images_mode=images_mode)
+        opened = await try_open_site(url, images_mode=images_mode, timeout_sec=timeout_sec)
         if opened is not None:
             if opened.kind == "article" and opened.article is not None:
                 opened.article = apply_compression_level(opened.article, level)
             return opened
         article = apply_compression_level(
-            await extract_article(url, images_mode=images_mode),
+            await extract_article(url, images_mode=images_mode, timeout_sec=timeout_sec),
             level,
         )
         return OpenResponse(kind="article", article=article)

@@ -16,11 +16,9 @@ def test_browser_strips_example_com():
 
 
 @pytest.mark.integration
+@pytest.mark.skipif(not playwright_available(), reason="Playwright/Chromium not installed")
 def test_build_strip_page_browser_engine_integration():
     from app.screenshot_strips import build_strip_page
-
-    if not playwright_available():
-        pytest.skip("Playwright not installed")
     page = asyncio.run(
         build_strip_page("https://example.com", images_mode="tiny", engine="browser")
     )

@@ -3,6 +3,8 @@ package com.baddysays.saylat.device
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
+import com.baddysays.saylat.prefs.AppLanguage
+import com.baddysays.saylat.ui.strings.SaylatStrings
 
 enum class DeviceTier {
     LOW,
@@ -58,9 +60,11 @@ object DeviceCapabilities {
     fun canRunSmartLayout(context: Context): Boolean =
         totalRamMb(context) >= MIN_RAM_MB_FOR_SMART_LAYOUT
 
-    fun smartLayoutUnavailableReason(context: Context): String? {
+    fun smartLayoutUnavailableReason(context: Context): String? =
+        smartLayoutHint(context, AppLanguage.RU)
+
+    fun smartLayoutHint(context: Context, lang: AppLanguage): String? {
         if (canRunSmartLayout(context)) return null
-        val ram = totalRamMb(context)
-        return "Нужно ≥ ${MIN_RAM_MB_FOR_SMART_LAYOUT} МБ RAM (сейчас ~${ram} МБ)"
+        return SaylatStrings.smartLayoutRamHint(lang, totalRamMb(context), MIN_RAM_MB_FOR_SMART_LAYOUT)
     }
 }

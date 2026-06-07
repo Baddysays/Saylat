@@ -49,4 +49,5 @@ data class OpenResponse(
     val kind: String = "article",
     val article: SaylatArticle? = null,
     val feed: SaylatFeed? = null,
+    val wire: WireCompressedPayload? = null,
 )

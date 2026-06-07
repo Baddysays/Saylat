@@ -6,10 +6,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.baddysays.saylat.BuildConfig
 import com.baddysays.saylat.data.ApiFactory
+import com.baddysays.saylat.data.ReadLaterItem
+import com.baddysays.saylat.data.ReadLaterRepository
+import com.baddysays.saylat.data.BrowsingHistory
+import com.baddysays.saylat.data.HistoryEntry
 import com.baddysays.saylat.data.CompressionLevel
 import com.baddysays.saylat.data.ArticleStats
 import com.baddysays.saylat.data.ConnectStatus
 import com.baddysays.saylat.data.OpenRequest
+import com.baddysays.saylat.data.PayloadCodec
+import com.baddysays.saylat.data.fetchArticle
+import com.baddysays.saylat.data.fetchOpen
 import com.baddysays.saylat.data.SaylatArticle
 import com.baddysays.saylat.data.SaylatFeed
 import com.baddysays.saylat.data.ServiceCredentialsUpdate
@@ -31,8 +38,13 @@ import com.baddysays.saylat.data.VisualMapper
 import com.baddysays.saylat.data.VisualPage
 import com.baddysays.saylat.cache.PageCache
 import com.baddysays.saylat.util.GallerySaver
+import com.baddysays.saylat.prefs.AppLanguage
 import com.baddysays.saylat.prefs.ImagesMode
 import com.baddysays.saylat.prefs.ReaderMode
+import com.baddysays.saylat.prefs.PetSaladEconomy
+import com.baddysays.saylat.prefs.PetShopCatalog
+import com.baddysays.saylat.prefs.PetShopResult
+import com.baddysays.saylat.prefs.PetWallet
 import com.baddysays.saylat.prefs.SaylatPrefs
 import com.baddysays.saylat.util.SaylatUserAgents
 import com.baddysays.saylat.search.SearchEngine
@@ -42,11 +54,18 @@ import com.baddysays.saylat.translate.ArticleTranslator
 import com.baddysays.saylat.update.AppUpdateManager
 import com.baddysays.saylat.update.UpdateCheckResult
 import com.baddysays.saylat.network.ConnectivityMonitor
+import com.baddysays.saylat.network.NetworkLinkSpeed
 import com.baddysays.saylat.network.NetworkDiagnostics
 import com.baddysays.saylat.network.NetworkTestResult
 import com.baddysays.saylat.network.SpeedProfile
 import com.baddysays.saylat.network.SpeedTier
+import com.baddysays.saylat.tts.ArticleTtsEngine
+import com.baddysays.saylat.tts.TtsState
+import com.baddysays.saylat.ui.pet.PetBrowserAction
+import com.baddysays.saylat.ui.pet.PetBrowserBridge
+import com.baddysays.saylat.ui.pet.PetBrowserCue
 import com.baddysays.saylat.ui.theme.AppThemeId
+import com.baddysays.saylat.tamagotchi.PetSiteReactions
 import com.baddysays.saylat.util.HomeShortcutHelper
 import com.baddysays.saylat.util.UrlResolver
 import com.baddysays.saylat.util.UserFacingErrors
@@ -94,9 +113,11 @@ data class BrowserUiState(
     val translating: Boolean = false,
     val translationActive: Boolean = false,
     val appTheme: AppThemeId = AppThemeId.TEAL,
+    val uiLanguage: com.baddysays.saylat.prefs.AppLanguage = com.baddysays.saylat.prefs.AppLanguage.RU,
     val networkTesting: Boolean = false,
     val networkTestResult: NetworkTestResult? = null,
     val slowNetworkMode: Boolean = true,
+    val cellularSlowLink: Boolean = false,
     val liteImagesEnabled: Boolean = false,
     val deviceProfile: DeviceProfile? = null,
     val showLayoutLab: Boolean = false,
@@ -105,6 +126,10 @@ data class BrowserUiState(
     val readerUseSmartLayout: Boolean = false,
     val showPageLoadStats: Boolean = true,
     val tamagotchiEnabled: Boolean = true,
+    val petSkipReadyGate: Boolean = false,
+    val petProfile: com.baddysays.saylat.prefs.PetProfile = com.baddysays.saylat.prefs.PetProfile(),
+    val showPetShop: Boolean = false,
+    val petShopMessage: String? = null,
     val pageLoadStats: ArticleStats? = null,
     val showWhatsNew: Boolean = false,
     val whatsNewVersion: String = "",
@@ -131,9 +156,11 @@ data class BrowserUiState(
     val feedReplySending: Boolean = false,
     val feedReplyError: String? = null,
     val webViewUrl: String? = null,
+    val webViewLoading: Boolean = false,
     val visualPage: VisualPage? = null,
     val stripPage: StripPage? = null,
     val dismissedReaderBanners: Set<String> = emptySet(),
+    val readerToast: String? = null,
     val savingGallery: Boolean = false,
     val gallerySaveMessage: String? = null,
     val connectStatus: ConnectStatus? = null,
@@ -144,6 +171,11 @@ data class BrowserUiState(
     val telegramCodeSent: Boolean = false,
     val connectLoading: Boolean = false,
     val settingsTab: SettingsTab = SettingsTab.GENERAL,
+    val showReadLater: Boolean = false,
+    val readerTheme: ReaderTheme = ReaderTheme.AUTO,
+    val readerFontSettings: ReaderFontSettings = ReaderFontSettings(),
+    val petBrowserCue: PetBrowserCue? = null,
+    val suppressPetReadySpeech: Boolean = false,
 )
 
 class BrowserViewModel(
@@ -155,7 +187,13 @@ class BrowserViewModel(
     private val appContext = appContext.applicationContext
     private val appUpdateManager = AppUpdateManager(appContext)
     private val connectivityMonitor = ConnectivityMonitor(appContext)
+    private val trafficSavings = TrafficSavingsRepository(appContext)
+    private val readLaterRepo = ReadLaterRepository(appContext)
+    private val browsingHistory = BrowsingHistory(appContext)
+    private val ttsEngine = ArticleTtsEngine(appContext)
     private var layoutLabCache: LayoutLabComparison? = null
+    private var petLoadStartedAtMs = 0L
+    private var lastNetworkOnline: Boolean? = null
 
     companion object {
         private const val LAYOUT_LAB_SAMPLE_URL = "https://ru.wikipedia.org/wiki/Интернет"
@@ -166,7 +204,7 @@ class BrowserViewModel(
     private val _state = MutableStateFlow(
         BrowserUiState(
             smartLayoutAvailable = DeviceCapabilities.canRunSmartLayout(appContext),
-            smartLayoutHint = DeviceCapabilities.smartLayoutUnavailableReason(appContext),
+            smartLayoutHint = DeviceCapabilities.smartLayoutHint(appContext, AppLanguage.RU),
             deviceProfile = deviceProfile,
             slowNetworkMode = DeviceCapabilities.shouldDefaultSlowNetwork(appContext),
         ),
@@ -188,6 +226,18 @@ class BrowserViewModel(
 
     private val _urlInput = MutableStateFlow("")
     val urlInput: StateFlow<String> = _urlInput.asStateFlow()
+
+    val trafficSavedToday: StateFlow<Long> = trafficSavings.savedToday
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+
+    val readLaterItems = readLaterRepo.items
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val historyEntries = browsingHistory.entries
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val ttsState: StateFlow<TtsState> = ttsEngine.state
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TtsState())
 
     init {
         viewModelScope.launch {
@@ -215,6 +265,10 @@ class BrowserViewModel(
             prefs.settingsBundle.collect { bundle ->
                 val slow = bundle.slowNetworkMode
                     ?: DeviceCapabilities.shouldDefaultSlowNetwork(appContext)
+                val prev = _state.value
+                if (slow != prev.slowNetworkMode || bundle.liteImagesEnabled != prev.liteImagesEnabled) {
+                    ApiFactory.invalidateCache()
+                }
                 _state.value = _state.value.copy(
                     slowNetworkMode = slow,
                     liteImagesEnabled = bundle.liteImagesEnabled,
@@ -226,23 +280,210 @@ class BrowserViewModel(
                     recentSearches = bundle.recentSearches,
                     translateTargetLang = bundle.translateTargetLang,
                     appTheme = bundle.appTheme,
+                    uiLanguage = bundle.uiLanguage,
+                    smartLayoutHint = DeviceCapabilities.smartLayoutHint(appContext, bundle.uiLanguage),
                     showPageLoadStats = bundle.pageLoadStatsEnabled,
                     tamagotchiEnabled = bundle.tamagotchiEnabled,
                     readerMode = bundle.readerMode,
                     dismissedReaderBanners = bundle.dismissedReaderBanners,
                     customServerEnabled = bundle.customServerEnabled,
                     visitHistory = bundle.visitHistory,
+                    readerTheme = ReaderTheme.entries.find { it.name == bundle.readerTheme } ?: ReaderTheme.AUTO,
+                    readerFontSettings = ReaderFontSettings(sizeSp = bundle.readerFontSize),
                 )
             }
         }
         viewModelScope.launch {
             connectivityMonitor.isOnline.collect { online ->
-                _state.value = _state.value.copy(networkOnline = online)
+                val was = lastNetworkOnline
+                lastNetworkOnline = online
+                val slowLink = NetworkLinkSpeed.isSlowCellular(appContext)
+                val prevSlowLink = _state.value.cellularSlowLink
+                if (slowLink != prevSlowLink) {
+                    ApiFactory.invalidateCache()
+                }
+                _state.value = _state.value.copy(
+                    networkOnline = online,
+                    cellularSlowLink = slowLink,
+                )
+                if (was != null && was != online) {
+                    petNotify(if (online) PetBrowserAction.Online else PetBrowserAction.Offline)
+                }
             }
         }
         refreshConnectStatus()
         checkWhatsNewOnLaunch()
         refreshOfflineCache()
+        viewModelScope.launch { prefs.recordPetAppOpen() }
+        viewModelScope.launch {
+            prefs.petProfile.collect { profile ->
+                _state.value = _state.value.copy(petProfile = profile)
+            }
+        }
+        viewModelScope.launch {
+            prefs.petSkipReadyGate.collect { skip ->
+                _state.value = _state.value.copy(petSkipReadyGate = skip)
+            }
+        }
+    }
+
+    private var savedPetLoadKey: String? = null
+    private var savedPetPhase: PetPhase? = null
+
+    fun restorePetPhase(loadKey: String): PetPhase? =
+        savedPetPhase?.takeIf { savedPetLoadKey == loadKey }
+
+    fun persistPetSession(loadKey: String, phase: PetPhase) {
+        savedPetLoadKey = loadKey
+        savedPetPhase = phase
+    }
+
+    fun setPetSkipReadyGate(skip: Boolean) {
+        _state.value = _state.value.copy(petSkipReadyGate = skip)
+        viewModelScope.launch { prefs.setPetSkipReadyGate(skip) }
+    }
+
+    fun awardPetXp(amount: Int) {
+        viewModelScope.launch { prefs.addPetXp(amount) }
+    }
+
+    fun consumePetBrowserCue() {
+        _state.value = _state.value.copy(
+            petBrowserCue = null,
+            suppressPetReadySpeech = false,
+        )
+    }
+
+    private fun petNotify(action: PetBrowserAction) {
+        if (!_state.value.tamagotchiEnabled) return
+        val cue = PetBrowserBridge.cueFor(action, _state.value.uiLanguage)
+        if (cue.xp > 0) awardPetXp(cue.xp)
+        _state.value = _state.value.copy(petBrowserCue = cue)
+    }
+
+    private fun petLoadStart(url: String) {
+        petLoadStartedAtMs = System.currentTimeMillis()
+    }
+
+    private fun petLoadSuccess(url: String, stats: ArticleStats) {
+        val saved = (stats.original_bytes - stats.payload_bytes).toLong().coerceAtLeast(0)
+        val duration = (System.currentTimeMillis() - petLoadStartedAtMs).coerceAtLeast(0)
+        val snap = _state.value
+        val eco = snap.slowNetworkMode || snap.liteImagesEnabled
+        val xp = com.baddysays.saylat.tamagotchi.PetXpRewards.forLoad(saved, duration, eco)
+        if (xp > 0) awardPetXp(xp)
+        val ratio = if (stats.original_bytes > 0) {
+            ((1 - stats.payload_bytes.toFloat() / stats.original_bytes) * 100).toInt()
+        } else {
+            0
+        }
+        val bigCompression = ratio >= 40 && stats.original_bytes > 64 * 1024
+        if (bigCompression || saved > 10_000) {
+            val cue = PetBrowserBridge.cueFor(
+                PetBrowserAction.LoadSuccess(
+                    url = url,
+                    savedBytes = saved,
+                    durationMs = duration,
+                    stats = stats,
+                    host = PetSiteReactions.hostFromUrl(url),
+                    ecoMode = eco,
+                ),
+                snap.uiLanguage,
+            )
+            _state.value = _state.value.copy(
+                petBrowserCue = cue.copy(xp = 0),
+                suppressPetReadySpeech = true,
+            )
+        }
+    }
+
+    fun petHomeCare() {
+        viewModelScope.launch { prefs.petHomeCare() }
+    }
+
+    fun setPetName(name: String) {
+        viewModelScope.launch { prefs.setPetName(name) }
+    }
+
+    fun openPetShop() {
+        _state.value = _state.value.copy(showPetShop = true, petShopMessage = null)
+    }
+
+    fun closePetShop() {
+        _state.value = _state.value.copy(showPetShop = false, petShopMessage = null)
+    }
+
+    fun buyPetShopItem(itemId: String) {
+        viewModelScope.launch {
+            when (prefs.buyPetShopItem(itemId)) {
+                PetShopResult.Success -> {
+                    prefs.equipPetShopItem(itemId)
+                    _state.value = _state.value.copy(
+                        petShopMessage = "Куплено! ${PetShopCatalog.find(itemId)?.title ?: ""}",
+                    )
+                }
+                PetShopResult.AlreadyOwned -> equipPetShopItem(itemId)
+                PetShopResult.InsufficientFunds -> _state.value = _state.value.copy(
+                    petShopMessage = "Не хватает КБ в кошельке",
+                )
+                PetShopResult.NotFound -> _state.value = _state.value.copy(petShopMessage = "Нет такого товара")
+            }
+        }
+    }
+
+    fun equipPetShopItem(itemId: String) {
+        viewModelScope.launch {
+            if (prefs.equipPetShopItem(itemId)) {
+                val title = PetShopCatalog.find(itemId)?.title ?: ""
+                _state.value = _state.value.copy(petShopMessage = "Надето: $title")
+            }
+        }
+    }
+
+    fun unequipPetToys() {
+        viewModelScope.launch {
+            prefs.unequipPetToy()
+            _state.value = _state.value.copy(petShopMessage = "Игрушка убрана")
+        }
+    }
+
+    /** Списать один салатик (оптимистично обновляет UI, затем DataStore). */
+    fun spendPetSalad(): Boolean {
+        val profile = _state.value.petProfile
+        val next = PetSaladEconomy.spendSalad(profile) ?: return false
+        _state.value = _state.value.copy(petProfile = next)
+        viewModelScope.launch {
+            if (!prefs.spendPetSalad()) {
+                prefs.petProfile.first().let { restored ->
+                    _state.value = _state.value.copy(petProfile = restored)
+                }
+            }
+        }
+        return true
+    }
+
+    fun hatchPetEgg() {
+        val profile = _state.value.petProfile
+        if (profile.petHatched) return
+        _state.value = _state.value.copy(petProfile = profile.copy(petHatched = true))
+        viewModelScope.launch { prefs.hatchPetEgg() }
+    }
+
+    fun setWebViewLoading(loading: Boolean) {
+        if (_state.value.webViewLoading == loading) return
+        _state.value = _state.value.copy(webViewLoading = loading)
+    }
+
+    private var lastSaladCreditKey: String? = null
+
+    private fun creditPetTrafficSavings(url: String, stats: ArticleStats) {
+        if (!_state.value.tamagotchiEnabled) return
+        val saved = (stats.original_bytes - stats.payload_bytes).toLong()
+        if (saved <= 0) return
+        val key = "$url|${stats.original_bytes}|${stats.payload_bytes}"
+        if (key == lastSaladCreditKey) return
+        lastSaladCreditKey = key
+        viewModelScope.launch { prefs.creditPetBytesSaved(saved) }
     }
 
     fun setWelcomeServerDraft(url: String) {
@@ -274,9 +515,10 @@ class BrowserViewModel(
     fun refreshServerStatus() {
         viewModelScope.launch {
             val base = prefs.baseUrl.first()
+            val slow = effectiveSlowNetwork()
             _state.value = _state.value.copy(serverReady = null, serverStatusMessage = "Проверяем сервер…")
             val result = withContext(Dispatchers.IO) {
-                NetworkDiagnostics.runFullTest(base, _state.value.slowNetworkMode)
+                NetworkDiagnostics.runFullTest(base, slow)
             }
             _state.value = _state.value.copy(
                 serverReady = result.ok,
@@ -293,7 +535,7 @@ class BrowserViewModel(
     private fun checkForUpdateSilently() {
         viewModelScope.launch {
             try {
-                when (val check = AppUpdateManager(appContext).checkForUpdate()) {
+                when (val check = AppUpdateManager(appContext).checkForUpdate(_state.value.serverUrl)) {
                     is UpdateCheckResult.Available -> {
                         _state.value = _state.value.copy(
                             updateStatus = "Доступно ${check.info.version_name} — Настройки → Обновить",
@@ -337,7 +579,7 @@ class BrowserViewModel(
             try {
                 val lastSeen = prefs.lastSeenVersionCode.first()
                 if (BuildConfig.VERSION_CODE <= lastSeen) return@launch
-                when (val check = appUpdateManager.checkForUpdate()) {
+                when (val check = appUpdateManager.checkForUpdate(_state.value.serverUrl)) {
                     is UpdateCheckResult.UpToDate -> {
                         _state.value = _state.value.copy(
                             showWhatsNew = true,
@@ -552,11 +794,54 @@ class BrowserViewModel(
     private fun recordVisit(url: String, title: String) {
         viewModelScope.launch {
             prefs.recordVisit(url, title)
+            browsingHistory.record(url, title)
         }
+    }
+
+    fun openRssFeed(feedUrl: String) {
+        val normalized = normalizeUrl(feedUrl.trim())
+        if (!normalized.startsWith("http")) return
+        viewModelScope.launch {
+            petNotify(PetBrowserAction.FeedOpen)
+            _urlInput.value = normalized
+            _state.value = _state.value.copy(
+                screen = AppScreen.FEED,
+                loading = true,
+                error = null,
+                feed = null,
+                replySource = null,
+                replyItemId = null,
+                replyContextId = null,
+                showFeedReply = false,
+            )
+            try {
+                val feed = api().rssFeed(normalized)
+                _state.value = _state.value.copy(
+                    loading = false,
+                    feed = feed,
+                    feedLoadingMore = false,
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(
+                    loading = false,
+                    error = UserFacingErrors.from(e),
+                )
+            }
+        }
+    }
+
+    fun reloadFeed() {
+        val feed = _state.value.feed ?: return
+        if (feed.source == "rss" && feed.context_id.startsWith("http")) {
+            openRssFeed(feed.context_id)
+            return
+        }
+        openUnifiedInbox()
     }
 
     fun openUnifiedInbox() {
         viewModelScope.launch {
+            petNotify(PetBrowserAction.FeedOpen)
             _state.value = _state.value.copy(
                 screen = AppScreen.FEED,
                 loading = true,
@@ -593,6 +878,10 @@ class BrowserViewModel(
         viewModelScope.launch { prefs.setAppTheme(theme) }
     }
 
+    fun setUiLanguage(language: com.baddysays.saylat.prefs.AppLanguage) {
+        viewModelScope.launch { prefs.setUiLanguage(language) }
+    }
+
     fun setSlowNetworkMode(enabled: Boolean) {
         viewModelScope.launch { prefs.setSlowNetworkMode(enabled) }
     }
@@ -602,11 +891,16 @@ class BrowserViewModel(
     }
 
     fun setQuickSpeedMode(mode: QuickSpeedMode) {
+        val wasEco = QuickSpeedMode.fromFlags(
+            _state.value.slowNetworkMode,
+            _state.value.liteImagesEnabled,
+        ) == QuickSpeedMode.ECO
         viewModelScope.launch {
             when (mode) {
                 QuickSpeedMode.ECO -> {
                     prefs.setSlowNetworkMode(true)
                     prefs.setLiteImagesEnabled(true)
+                    if (!wasEco) petNotify(PetBrowserAction.EcoModeEnabled)
                 }
                 QuickSpeedMode.BALANCED -> {
                     prefs.setSlowNetworkMode(true)
@@ -637,7 +931,7 @@ class BrowserViewModel(
                 error = null,
             )
             try {
-                val article = api().extract(
+                val article = api().fetchArticle(
                     LAYOUT_LAB_SAMPLE_URL,
                     images = extractImagesMode(),
                     level = compressionLevel(),
@@ -676,10 +970,26 @@ class BrowserViewModel(
 
     fun setReaderLayoutMode(useSmart: Boolean) {
         val article = _state.value.article ?: return
-        if (useSmart && !DeviceCapabilities.canRunSmartLayout(appContext)) return
+        val lang = _state.value.uiLanguage
+        if (useSmart && !DeviceCapabilities.canRunSmartLayout(appContext)) {
+            _state.value = _state.value.copy(
+                readerToast = com.baddysays.saylat.ui.strings.SaylatStrings.smartLayoutUnavailableToast(lang),
+            )
+            return
+        }
         viewModelScope.launch {
             applyArticle(article, useSmartLayout = useSmart)
         }
+    }
+
+    fun clearReaderToast() {
+        if (_state.value.readerToast != null) {
+            _state.value = _state.value.copy(readerToast = null)
+        }
+    }
+
+    fun showReaderToast(message: String) {
+        _state.value = _state.value.copy(readerToast = message)
     }
 
     fun dismissNetworkTest() {
@@ -691,7 +1001,7 @@ class BrowserViewModel(
             _state.value = _state.value.copy(networkTesting = true, error = null)
             try {
                 val base = prefs.baseUrl.first()
-                val slow = prefs.slowNetworkMode.first() ?: _state.value.slowNetworkMode
+                val slow = effectiveSlowNetwork()
                 val result = NetworkDiagnostics.runFullTest(base, slowNetwork = slow)
                 _state.value = _state.value.copy(
                     networkTesting = false,
@@ -722,12 +1032,17 @@ class BrowserViewModel(
         return CompressionLevel.resolve(snap.slowNetworkMode, snap.smartLayoutEnabled, smartAvail)
     }
 
+    private fun effectiveSlowNetwork(): Boolean {
+        val snap = _state.value
+        return snap.slowNetworkMode || snap.cellularSlowLink
+    }
+
     private suspend fun api(): com.baddysays.saylat.data.SaylatApi {
         val base = prefs.baseUrl.first()
         val snap = _state.value
         return ApiFactory.create(
             base,
-            slowNetwork = snap.slowNetworkMode,
+            slowNetwork = effectiveSlowNetwork(),
             compressionLevel = compressionLevel(),
             apiKey = com.baddysays.saylat.BuildConfig.PROXY_API_KEY,
         )
@@ -849,6 +1164,7 @@ class BrowserViewModel(
             plan = null,
             article = null,
             webViewUrl = null,
+            webViewLoading = false,
             visualPage = null,
             stripPage = null,
             gallerySaveMessage = null,
@@ -885,6 +1201,7 @@ class BrowserViewModel(
                 replyItemId = null,
                 replyContextId = null,
                 webViewUrl = null,
+            webViewLoading = false,
                 stripPage = null,
                 article = null,
                 plan = null,
@@ -899,8 +1216,17 @@ class BrowserViewModel(
                     article = null,
                     plan = null,
                     webViewUrl = null,
+            webViewLoading = false,
                     cachedNotice = "Полосы из офлайн-кэша",
                     pageLoadStats = ArticleStats(
+                        original_bytes = strips.stats.original_bytes,
+                        payload_bytes = strips.stats.payload_bytes,
+                        fetch_ms = strips.stats.fetch_ms,
+                    ),
+                )
+                creditPetTrafficSavings(
+                    strips.url,
+                    ArticleStats(
                         original_bytes = strips.stats.original_bytes,
                         payload_bytes = strips.stats.payload_bytes,
                         fetch_ms = strips.stats.fetch_ms,
@@ -919,6 +1245,7 @@ class BrowserViewModel(
     }
 
     fun backFromReader() {
+        stopTts()
         originalArticle = null
         if (_state.value.feed != null) {
             _state.value = _state.value.copy(
@@ -926,6 +1253,7 @@ class BrowserViewModel(
                 plan = null,
                 article = null,
                 webViewUrl = null,
+            webViewLoading = false,
                 visualPage = null,
                 stripPage = null,
                 layoutEnhancing = false,
@@ -941,6 +1269,7 @@ class BrowserViewModel(
                 plan = null,
                 article = null,
                 webViewUrl = null,
+            webViewLoading = false,
                 visualPage = null,
                 stripPage = null,
                 layoutEnhancing = false,
@@ -972,6 +1301,9 @@ class BrowserViewModel(
         }
         val href = item.href?.trim().orEmpty()
         when {
+            item.id.startsWith("rss-") && href.startsWith("http") -> {
+                loadUrl(href, keepFeedParent = true)
+            }
             href.startsWith("saylat://telegram/") -> {
                 val chatId = href.removePrefix("saylat://telegram/")
                 openTarget("telegram", resourceId = chatId, keepFeedParent = true)
@@ -993,6 +1325,103 @@ class BrowserViewModel(
         }
     }
 
+    fun reloadCurrentUrl(invalidateCache: Boolean = false) {
+        val currentUrl = _urlInput.value.trim()
+        if (!currentUrl.startsWith("http://") && !currentUrl.startsWith("https://")) return
+        viewModelScope.launch {
+            if (invalidateCache) {
+                petNotify(PetBrowserAction.Refresh)
+                try {
+                    api().invalidateCache(currentUrl)
+                } catch (_: Exception) {
+                }
+            }
+            loadUrl(currentUrl)
+        }
+    }
+
+    fun toggleReadLater() {
+        val article = _state.value.article ?: return
+        val url = _urlInput.value.trim().takeIf { it.startsWith("http") } ?: article.url
+        viewModelScope.launch {
+            if (readLaterRepo.contains(url)) {
+                readLaterRepo.remove(url)
+                showReaderToast("Убрано из списка чтения")
+            } else {
+                val plain = article.plain_text.ifBlank {
+                    article.blocks.mapNotNull { it.text }.joinToString(" ")
+                }
+                readLaterRepo.add(
+                    ReadLaterItem(
+                        url = url,
+                        title = article.title,
+                        excerpt = article.excerpt.take(200),
+                        estimatedMinutes = readingTimeFromText(plain)
+                            ?.filter { it.isDigit() }
+                            ?.toIntOrNull(),
+                    ),
+                )
+                petNotify(PetBrowserAction.SaveReadLater)
+                showReaderToast("Добавлено в список чтения")
+            }
+        }
+    }
+
+    fun removeReadLater(url: String) {
+        viewModelScope.launch { readLaterRepo.remove(url) }
+    }
+
+    fun openReadLater() {
+        _state.value = _state.value.copy(showReadLater = true)
+    }
+
+    fun closeReadLater() {
+        _state.value = _state.value.copy(showReadLater = false)
+    }
+
+    fun setReaderTheme(theme: ReaderTheme) {
+        viewModelScope.launch { prefs.setReaderTheme(theme.name) }
+    }
+
+    fun setReaderFontSettings(settings: ReaderFontSettings) {
+        viewModelScope.launch { prefs.setReaderFontSize(settings.sizeSp) }
+    }
+
+    fun startTts(startFromParagraph: Int = 0) {
+        val article = _state.value.article ?: return
+        val paragraphs = article.blocks
+            .filter { it.type == "paragraph" || it.type == "heading" }
+            .mapNotNull { it.text }
+            .filter { it.length > 10 }
+        if (paragraphs.isEmpty() && article.plain_text.isNotBlank()) {
+            ttsEngine.play(listOf(article.plain_text), startFrom = startFromParagraph)
+        } else {
+            ttsEngine.play(paragraphs, startFrom = startFromParagraph)
+        }
+    }
+
+    fun pauseTts() = ttsEngine.pause()
+
+    fun resumeTts() = ttsEngine.resume()
+
+    fun stopTts() = ttsEngine.stop()
+
+    fun nextTts() = ttsEngine.skipNext()
+
+    fun prevTts() = ttsEngine.skipPrev()
+
+    override fun onCleared() {
+        ttsEngine.destroy()
+        super.onCleared()
+    }
+
+    private suspend fun recordTrafficSavings(stats: ArticleStats) {
+        trafficSavings.record(
+            originalBytes = stats.original_bytes.toLong(),
+            payloadBytes = stats.payload_bytes.toLong(),
+        )
+    }
+
     private fun openMailItem(item: FeedItem) {
         val parentFeed = _state.value.feed
         viewModelScope.launch {
@@ -1001,6 +1430,7 @@ class BrowserViewModel(
                 loading = true,
                 error = null,
                 webViewUrl = null,
+            webViewLoading = false,
                 stripPage = null,
                 visualPage = null,
                 translationActive = false,
@@ -1039,6 +1469,7 @@ class BrowserViewModel(
                 loading = false,
                 error = null,
                 webViewUrl = null,
+            webViewLoading = false,
                 stripPage = null,
                 visualPage = null,
                 feed = feed,
@@ -1171,6 +1602,9 @@ class BrowserViewModel(
                 layoutEnhancing = false,
                 readerUseSmartLayout = false,
             )
+            creditPetTrafficSavings(article.url, article.stats)
+            recordTrafficSavings(article.stats)
+            petLoadSuccess(article.url, article.stats)
             withContext(Dispatchers.IO) { PageCache.putArticle(appContext, article) }
             refreshOfflineCache()
             recordVisit(article.url, article.title)
@@ -1196,6 +1630,9 @@ class BrowserViewModel(
             layoutEnhancing = wantSmart,
             readerUseSmartLayout = wantSmart,
         )
+        creditPetTrafficSavings(article.url, article.stats)
+        recordTrafficSavings(article.stats)
+        petLoadSuccess(article.url, article.stats)
         if (wantSmart) {
             val enhanced = withContext(Dispatchers.Default) {
                 val base = SmartLayoutCoordinator.renderWithSmartLayout(article, useAi = true)
@@ -1260,7 +1697,7 @@ class BrowserViewModel(
                 error = null,
             )
             try {
-                when (val check = appUpdateManager.checkForUpdate()) {
+                when (val check = appUpdateManager.checkForUpdate(_state.value.serverUrl)) {
                     is UpdateCheckResult.UpToDate -> {
                         _state.value = _state.value.copy(
                             updateChecking = false,
@@ -1374,6 +1811,7 @@ class BrowserViewModel(
             return
         }
 
+        petNotify(PetBrowserAction.SearchStart(raw))
         viewModelScope.launch {
             _state.value = _state.value.copy(
                 searching = true,
@@ -1386,7 +1824,7 @@ class BrowserViewModel(
                 val engineResolved = _state.value.searchEngine
                 val searx = prefs.searxInstanceUrl.first()
                 val proxy = prefs.baseUrl.first()
-                val slow = _state.value.slowNetworkMode
+                val slow = effectiveSlowNetwork()
                 val hits = searchRepository.search(
                     raw,
                     engineResolved,
@@ -1400,6 +1838,7 @@ class BrowserViewModel(
                     searching = false,
                     searchResults = hits,
                 )
+                petNotify(PetBrowserAction.SearchDone(hits.size))
                 if (hits.isEmpty()) {
                     _state.value = _state.value.copy(error = "Ничего не найдено. Смените движок или инстанс SearXNG.")
                 }
@@ -1459,6 +1898,7 @@ class BrowserViewModel(
         originalArticle = null
         val parentFeed = if (keepFeedParent) _state.value.feed else null
         val nextScreen = if (target == "url") AppScreen.READER else AppScreen.FEED
+        url?.let { petLoadStart(it) }
         _state.value = _state.value.copy(
             screen = nextScreen,
             loading = true,
@@ -1472,7 +1912,7 @@ class BrowserViewModel(
             translating = false,
         )
         try {
-            val response = api().open(
+            val response = api().fetchOpen(
                 OpenRequest(
                     target = target,
                     url = url,
@@ -1514,6 +1954,10 @@ class BrowserViewModel(
             return
         }
         val normalized = SaylatUserAgents.normalizeFetchUrl(url)
+        if (looksLikeRssFeedUrl(normalized)) {
+            openRssFeed(normalized)
+            return
+        }
         _urlInput.value = normalized
         _state.value = _state.value.copy(
             screen = AppScreen.READER,
@@ -1552,6 +1996,8 @@ class BrowserViewModel(
     private suspend fun loadStrips(url: String, keepFeedParent: Boolean) {
         originalArticle = null
         val parentFeed = if (keepFeedParent) _state.value.feed else null
+        lastSaladCreditKey = null
+        petLoadStart(url)
         _state.value = _state.value.copy(
             screen = AppScreen.READER,
             loading = true,
@@ -1563,6 +2009,7 @@ class BrowserViewModel(
             visualPage = null,
             stripPage = null,
             webViewUrl = null,
+            webViewLoading = false,
             feed = parentFeed,
             pageLoadStats = null,
             gallerySaveMessage = null,
@@ -1571,29 +2018,35 @@ class BrowserViewModel(
             val page = api().renderStrips(url, images = extractImagesMode())
             withContext(Dispatchers.IO) { PageCache.putStripPage(appContext, page) }
             refreshOfflineCache()
+            val loadStats = ArticleStats(
+                original_bytes = page.stats.original_bytes,
+                payload_bytes = page.stats.payload_bytes,
+                fetch_ms = page.stats.fetch_ms,
+            )
             _state.value = _state.value.copy(
                 loading = false,
                 stripPage = page,
-                pageLoadStats = ArticleStats(
-                    original_bytes = page.stats.original_bytes,
-                    payload_bytes = page.stats.payload_bytes,
-                    fetch_ms = page.stats.fetch_ms,
-                ),
+                pageLoadStats = loadStats,
             )
+            creditPetTrafficSavings(url, loadStats)
+            petLoadSuccess(url, loadStats)
             recordVisit(url, page.title.ifBlank { url })
         } catch (e: Exception) {
             val cached = withContext(Dispatchers.IO) { PageCache.loadStripPage(appContext, url) }
             if (cached != null) {
+                val loadStats = ArticleStats(
+                    original_bytes = cached.stats.original_bytes,
+                    payload_bytes = cached.stats.payload_bytes,
+                    fetch_ms = cached.stats.fetch_ms,
+                )
                 _state.value = _state.value.copy(
                     loading = false,
                     stripPage = cached,
                     cachedNotice = "Полосы из офлайн-кэша",
-                    pageLoadStats = ArticleStats(
-                        original_bytes = cached.stats.original_bytes,
-                        payload_bytes = cached.stats.payload_bytes,
-                        fetch_ms = cached.stats.fetch_ms,
-                    ),
+                    pageLoadStats = loadStats,
                 )
+                creditPetTrafficSavings(url, loadStats)
+                petLoadSuccess(url, loadStats)
             } else {
                 _state.value = _state.value.copy(
                     loading = false,
@@ -1616,6 +2069,7 @@ class BrowserViewModel(
             visualPage = null,
             stripPage = null,
             webViewUrl = url,
+            webViewLoading = true,
             pageLoadStats = null,
             feed = parentFeed,
             translationActive = false,
@@ -1638,6 +2092,7 @@ class BrowserViewModel(
             article = null,
             plan = null,
             webViewUrl = null,
+            webViewLoading = false,
             visualPage = null,
             feed = parentFeed,
             translationActive = false,
@@ -1684,11 +2139,16 @@ class BrowserViewModel(
     }
 
     private suspend fun applyOpenResponse(response: com.baddysays.saylat.data.OpenResponse, urlInput: String) {
+        val expanded = if (response.wire != null) {
+            PayloadCodec.expandOpenResponse(response)
+        } else {
+            response
+        }
         _urlInput.value = urlInput
         _state.value = _state.value.copy(loading = false)
-        when (response.kind) {
+        when (expanded.kind) {
             "feed" -> {
-                val feed = response.feed
+                val feed = expanded.feed
                 if (feed != null) {
                     _state.value = _state.value.copy(
                         screen = AppScreen.FEED,
@@ -1702,7 +2162,7 @@ class BrowserViewModel(
                 }
             }
             else -> {
-                val article = response.article
+                val article = expanded.article
                 if (article != null) {
                     _state.value = _state.value.copy(screen = AppScreen.READER)
                     applyArticle(article, smartEnhanceFromPrefs = true)
@@ -1722,5 +2182,17 @@ class BrowserViewModel(
         raw.startsWith("http://") || raw.startsWith("https://") -> raw
         raw.contains(".") -> "https://$raw"
         else -> raw
+    }
+
+    private fun looksLikeRssFeedUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.endsWith(".xml") ||
+            lower.endsWith(".rss") ||
+            lower.endsWith(".atom") ||
+            "/rss" in lower ||
+            "/feed" in lower ||
+            "/atom" in lower ||
+            "format=rss" in lower ||
+            "feeds/posts" in lower
     }
 }

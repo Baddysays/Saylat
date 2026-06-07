@@ -31,9 +31,19 @@ class Block(BaseModel):
 class ArticleStats(BaseModel):
     original_bytes: int = 0
     payload_bytes: int = 0
+    wire_bytes: int = 0
     images_inlined: int = 0
     images_omitted: int = 0
     fetch_ms: int = 0
+
+
+class WireCompressedPayload(BaseModel):
+    """Сжатая статья для передачи по сети; клиент распаковывает в SaylatArticle."""
+
+    codec: str = "gzip-b64"
+    wire_bytes: int = 0
+    uncompressed_bytes: int = 0
+    data: str = ""
 
 
 class ArticleLink(BaseModel):
@@ -64,7 +74,14 @@ class SaylatArticle(BaseModel):
     css_hints: CssHints | None = None
 
 
-ImagesMode = Literal["normal", "tiny", "off", "layout"]
+class ArticleWireEnvelope(BaseModel):
+    """Ответ extract/open: либо готовая статья, либо сжатый wire (не оба)."""
+
+    article: SaylatArticle | None = None
+    wire: WireCompressedPayload | None = None
+
+
+ImagesMode = Literal["normal", "tiny", "off", "layout", "refs"]
 
 
 class ExtractRequest(BaseModel):
@@ -182,6 +199,7 @@ class OpenResponse(BaseModel):
     kind: Literal["article", "feed"] = "article"
     article: SaylatArticle | None = None
     feed: SaylatFeed | None = None
+    wire: WireCompressedPayload | None = None
 
 
 class QueryRequest(BaseModel):

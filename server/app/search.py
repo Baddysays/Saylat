@@ -135,7 +135,9 @@ async def _duckduckgo_html_search(query: str) -> list[SearchHit]:
     ) as client:
         resp = await client.post(_DDG_HTML, data={"q": query})
         resp.raise_for_status()
-        soup = BeautifulSoup(resp.text, "lxml")
+        from .http_text import decode_response_text
+
+        soup = BeautifulSoup(decode_response_text(resp), "lxml")
 
     hits: list[SearchHit] = []
     for block in soup.select(".result"):

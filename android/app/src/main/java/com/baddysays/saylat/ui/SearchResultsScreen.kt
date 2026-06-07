@@ -32,14 +32,7 @@ fun SearchResultsList(
     modifier: Modifier = Modifier,
 ) {
     if (searching) {
-        Column(
-            modifier = modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            CircularProgressIndicator()
-            Text("Ищем «$query»…", modifier = Modifier.padding(top = 12.dp))
-        }
+        SearchLoadingSkeleton()
         return
     }
 

@@ -21,9 +21,19 @@ fun SaylatRemoteImage(
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.FillWidth,
     placeholderHeight: Int = 120,
+    serverBaseUrl: String = "",
+    pageUrl: String? = null,
+    proxyRemoteImages: Boolean = false,
 ) {
+    val resolvedModel = androidx.compose.runtime.remember(model, serverBaseUrl, pageUrl, proxyRemoteImages) {
+        if (model is String && proxyRemoteImages) {
+            com.baddysays.saylat.data.ImageProxyUrl.resolve(serverBaseUrl, model, pageUrl, useProxy = true)
+        } else {
+            model
+        }
+    }
     SubcomposeAsyncImage(
-        model = model,
+        model = resolvedModel,
         contentDescription = contentDescription,
         modifier = modifier,
         contentScale = contentScale,

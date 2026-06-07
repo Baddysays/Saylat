@@ -12,6 +12,14 @@ class RetryInterceptor(
     private val maxRetries: Int = 2,
     private val delayMs: Long = 1500L,
 ) : Interceptor {
+
+    companion object {
+        fun forSlowNetwork(slowNetwork: Boolean): RetryInterceptor = if (slowNetwork) {
+            RetryInterceptor(maxRetries = 4, delayMs = 2_500L)
+        } else {
+            RetryInterceptor(maxRetries = 2, delayMs = 1_500L)
+        }
+    }
     override fun intercept(chain: Interceptor.Chain): Response {
         var attempt = 0
         var lastError: IOException? = null

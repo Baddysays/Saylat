@@ -63,3 +63,10 @@ server/releases/
 !/releases/update.json
 
 # Личный URL сервера при сборке APK (см. android/local.properties.example)
+
+# --- Локальные артефакты / пакеты для ревью (не в git) ---
+dist/
+_import/
+.opencode/
+qa-emulator/
+docs/review/

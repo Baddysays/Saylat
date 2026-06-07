@@ -7,6 +7,8 @@ import kotlinx.coroutines.delay
 /**
  * Прототип «локального ИИ»: эвристики второго прохода + задержка как у модели.
  * Заменяется на Gemma 3 1B + LiteRT-LM без смены [LayoutEnhancer].
+ *
+ * Важно: умная вёрстка не должна выкидывать контент — только улучшать читаемость.
  */
 class PrototypeAiLayoutEnhancer(
     private val simulatedLatencyMs: Long = 0,
@@ -20,79 +22,58 @@ class PrototypeAiLayoutEnhancer(
 
     private fun refine(article: SaylatArticle, baseline: LayoutPlan): LayoutPlan {
         val blocks = article.blocks
-        val hide = mutableSetOf<Int>()
-        val mergeGroups = mutableListOf<List<Int>>()
-
-        blocks.forEachIndexed { i, block ->
-            if (block.type == "paragraph") {
-                val len = block.text?.length ?: 0
-                if (len in 1..24) hide.add(i)
-            }
-        }
-
-        var i = 0
-        while (i < blocks.size) {
-            if (blocks[i].type == "paragraph" && i !in hide) {
-                val group = mutableListOf(i)
-                var j = i + 1
-                var total = blocks[i].text?.length ?: 0
-                while (j < blocks.size && blocks[j].type == "paragraph" && j !in hide) {
-                    val len = blocks[j].text?.length ?: 0
-                    if (total + len > 320) break
-                    if (len < 120) {
-                        group.add(j)
-                        hide.add(j)
-                        total += len
-                        j++
-                    } else break
-                }
-                if (group.size > 1) mergeGroups += group
-                i = j
-            } else i++
-        }
-
-        val textFirst = mutableListOf<Int>()
-        val images = mutableListOf<Int>()
-        val other = mutableListOf<Int>()
-        baseline.blockOrder.forEach { idx ->
-            if (idx in hide) return@forEach
-            when (blocks.getOrNull(idx)?.type) {
-                "image" -> images += idx
-                "heading", "paragraph", "quote", "list" -> textFirst += idx
-                else -> other += idx
-            }
-        }
+        val mergeGroups = buildMergeGroups(blocks)
 
         val density = when {
-            blocks.size > 14 -> Density.COMPACT
-            blocks.count { it.type == "image" } >= 4 -> Density.COMPACT
+            blocks.size > 20 -> Density.COMFORTABLE
+            blocks.count { it.type == "image" } >= 6 -> Density.COMFORTABLE
             baseline.density == Density.AIRY -> Density.AIRY
+            blocks.size > 10 -> Density.COMFORTABLE
             else -> baseline.density
         }
 
-        val maxImages = when (density) {
-            Density.COMPACT -> 2
-            Density.COMFORTABLE -> 4
-            Density.AIRY -> 8
-        }
-        val keptImages = images.take(maxImages)
-        val droppedImages = images.drop(maxImages)
-        hide.addAll(droppedImages)
-
-        val blockOrder = textFirst + other + keptImages
-        val hero = buildHeroExcerpt(article, blocks, baseline.heroExcerpt)
-
         return baseline.copy(
-            heroExcerpt = hero,
+            heroExcerpt = buildHeroExcerpt(blocks, baseline.heroExcerpt),
             density = density,
-            blockOrder = blockOrder,
-            hideBlockIds = hide,
+            blockOrder = baseline.blockOrder,
+            hideBlockIds = emptySet(),
             mergeParagraphGroups = mergeGroups,
             source = source,
         )
     }
 
-    private fun buildHeroExcerpt(article: SaylatArticle, blocks: List<Block>, fallback: String): String {
+    /** Склеиваем только короткие соседние абзацы; текст остаётся в ленте через merge. */
+    private fun buildMergeGroups(blocks: List<Block>): List<List<Int>> {
+        val groups = mutableListOf<List<Int>>()
+        var i = 0
+        while (i < blocks.size) {
+            if (blocks[i].type != "paragraph") {
+                i++
+                continue
+            }
+            val firstLen = blocks[i].text?.trim()?.length ?: 0
+            if (firstLen >= 80) {
+                i++
+                continue
+            }
+            val group = mutableListOf(i)
+            var total = firstLen
+            var j = i + 1
+            while (j < blocks.size && blocks[j].type == "paragraph") {
+                val len = blocks[j].text?.trim()?.length ?: 0
+                if (len == 0 || total + len > 280) break
+                if (len >= 120) break
+                group.add(j)
+                total += len
+                j++
+            }
+            if (group.size > 1) groups += group
+            i = if (group.size > 1) j else i + 1
+        }
+        return groups
+    }
+
+    private fun buildHeroExcerpt(blocks: List<Block>, fallback: String): String {
         val parts = blocks
             .filter { it.type == "paragraph" }
             .mapNotNull { it.text?.trim() }

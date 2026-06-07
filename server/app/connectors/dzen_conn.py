@@ -31,7 +31,9 @@ async def open_dzen(resource_id: str | None) -> OpenResponse:
 
     async with httpx.AsyncClient(follow_redirects=True, timeout=settings.request_timeout_sec) as client:
         resp = await client.get(url, headers=headers)
-        html = resp.text[: settings.max_html_bytes]
+        from ..http_text import decode_response_text
+
+        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
         original_bytes = len(resp.content)
 
     items = _dzen_parse_news_html(html, "https://dzen.ru")

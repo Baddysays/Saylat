@@ -103,7 +103,9 @@ async def fetch_proxy_html(target_url: str, *, request_base: str) -> str:
     ) as client:
         resp = await client.get(fetch_url, timeout=settings.request_timeout_sec)
         resp.raise_for_status()
-        html = resp.text[: settings.max_html_bytes]
+        from .http_text import decode_response_text
+
+        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
 
     return build_proxy_document(html, fetch_url, request_base)
 

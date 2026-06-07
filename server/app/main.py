@@ -23,6 +23,7 @@ from .models import (
     ActRequest,
     ActResponse,
     AppUpdateInfo,
+    ArticleWireEnvelope,
     ConnectStatusResponse,
     ServiceCredentialsPublic,
     ServiceCredentialsUpdate,
@@ -44,7 +45,8 @@ from .models import (
 from .search import search_web
 from .thin_client import act_on_item, open_resource, query_feed
 from .translate import translate_texts
-from .update import apk_file_response, get_update_info
+from .update import apk_file_response, get_update_info, resolve_app_version
+from .fetch_policy import outbound_timeout_sec
 from .url_safety import validate_public_http_url
 from .response_cache import response_cache
 from .compression_levels import (
@@ -85,6 +87,15 @@ if _cors_origins:
 app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
 app.add_middleware(ApiKeyMiddleware)
 
+
+@app.middleware("http")
+async def _utf8_json_charset(request: Request, call_next):
+    response = await call_next(request)
+    content_type = response.headers.get("content-type", "")
+    if content_type.startswith("application/json") and "charset=" not in content_type.lower():
+        response.headers["content-type"] = "application/json; charset=utf-8"
+    return response
+
 _STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
 
@@ -114,10 +125,11 @@ async def bench_download_lite() -> Response:
 async def health() -> HealthResponse:
     pw = playwright_render_status()
     cache = response_cache.stats()
+    version_code, version_name, _ = resolve_app_version()
     return HealthResponse(
         searx_instance=settings.searx_instance,
-        app_version_code=settings.app_version_code,
-        app_version_name=settings.app_version_name,
+        app_version_code=version_code,
+        app_version_name=version_name,
         cache_entries=cache["entries"],
         cache_hits=cache["hits"],
         playwright=PlaywrightStatus(
@@ -154,9 +166,61 @@ async def search_get(
 
 
 @app.post("/api/open", response_model=OpenResponse)
-async def thin_open(body: OpenRequest) -> OpenResponse:
+async def thin_open(request: Request, body: OpenRequest) -> OpenResponse:
+    from .payload_codec import CODEC_GZIP_B64, maybe_wire_compress_open, parse_payload_codec
+
     try:
-        return await open_resource(body)
+        response = await open_resource(body, timeout_sec=outbound_timeout_sec(request))
+        from .payload_codec import CODEC_GZIP_BINARY, CODEC_ZSTD_BINARY
+
+        codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec"))
+        if codec in (CODEC_GZIP_BINARY, CODEC_ZSTD_BINARY):
+            codec = CODEC_GZIP_B64
+        cache_key = None
+        if body.target == "url" and body.url:
+            cache_key = f"open:{body.url.strip()}:{body.level}:{body.images}"
+        return await maybe_wire_compress_open(response, codec, cache_key=cache_key)
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/api/open/binary")
+async def thin_open_binary(request: Request, body: OpenRequest) -> Response:
+    from .payload_codec import article_to_json_bytes, parse_payload_codec, prepare_binary_body
+
+    if body.target != "url":
+        raise HTTPException(
+            status_code=400,
+            detail="open/binary only supports target=url; use POST /api/open for feeds",
+        )
+    try:
+        response = await open_resource(body, timeout_sec=outbound_timeout_sec(request))
+        if response.kind != "article" or response.article is None:
+            raise HTTPException(status_code=400, detail="Not an article response")
+        cache_key = f"open:{(body.url or '').strip()}:{body.level}:{body.images}"
+        codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec"))
+        body_bytes, extra_headers, media_type = await prepare_binary_body(
+            response.article,
+            cache_key,
+            codec=codec,
+        )
+        if body_bytes is None:
+            raw = article_to_json_bytes(response.article)
+            return Response(
+                content=raw,
+                media_type="application/json",
+                headers={
+                    "X-Saylat-Payload-Codec": "identity",
+                    "X-Saylat-Uncompressed-Bytes": str(len(raw)),
+                },
+            )
+        return Response(
+            content=body_bytes,
+            media_type=media_type,
+            headers=extra_headers,
+        )
     except HTTPException:
         raise
     except Exception as exc:
@@ -356,28 +420,82 @@ async def render_strips(
         raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
-@app.get("/api/extract", response_model=SaylatArticle)
+@app.get("/api/extract", response_model=ArticleWireEnvelope)
 async def extract_get(
     request: Request,
     url: str = Query(..., description="Целевой URL"),
     images: str = Query(
         "normal",
         description="normal | tiny (~1–2 KB JPEG) | off | layout",
-        pattern="^(normal|tiny|off|layout)$",
+        pattern="^(normal|tiny|off|layout|refs)$",
     ),
     level: str = Query(
         "medium",
         description="light | medium | full",
         pattern="^(light|medium|full)$",
     ),
-) -> SaylatArticle:
+) -> ArticleWireEnvelope:
+    from .payload_codec import CODEC_GZIP_B64, parse_payload_codec, prepare_article_envelope
+
     header = request.headers.get("x-saylat-level") or request.headers.get("x-saylat-compression-level")
-    return await _extract_safe(url, images=images, level=level, level_header=header)
+    codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec")) or CODEC_GZIP_B64
+    article, cache_key = await _extract_safe(
+        url, images=images, level=level, level_header=header, request=request,
+    )
+    return await prepare_article_envelope(article, codec, cache_key)
 
 
-@app.post("/api/extract", response_model=SaylatArticle)
-async def extract_post(body: ExtractRequest) -> SaylatArticle:
-    return await _extract_safe(str(body.url), images=body.images, level=body.level)
+@app.get("/api/image")
+async def api_image_proxy(
+    url: str = Query(..., description="URL картинки"),
+    page_url: str | None = Query(None, description="URL статьи для Referer"),
+    tiny: bool = Query(True, description="Мини-JPEG (~8 KB)"),
+) -> Response:
+    from .image_proxy import image_proxy_response
+
+    return await image_proxy_response(url, page_url, tiny=tiny)
+
+
+@app.get("/api/extract/binary")
+async def extract_binary_get(
+    request: Request,
+    url: str = Query(...),
+    images: str = Query("normal", pattern="^(normal|tiny|off|layout|refs)$"),
+    level: str = Query("medium", pattern="^(light|medium|full)$"),
+) -> Response:
+    from .payload_codec import article_to_json_bytes, parse_payload_codec, prepare_binary_body
+
+    header = request.headers.get("x-saylat-level") or request.headers.get("x-saylat-compression-level")
+    codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec"))
+    article, cache_key = await _extract_safe(
+        url, images=images, level=level, level_header=header, request=request,
+    )
+    body, extra_headers, media_type = await prepare_binary_body(article, cache_key, codec=codec)
+    if body is None:
+        raw = article_to_json_bytes(article)
+        return Response(
+            content=raw,
+            media_type="application/json",
+            headers={
+                "X-Saylat-Payload-Codec": "identity",
+                "X-Saylat-Uncompressed-Bytes": str(len(raw)),
+            },
+        )
+    return Response(content=body, media_type=media_type, headers=extra_headers)
+
+
+@app.post("/api/extract", response_model=ArticleWireEnvelope)
+async def extract_post(request: Request, body: ExtractRequest) -> ArticleWireEnvelope:
+    from .payload_codec import parse_payload_codec, prepare_article_envelope
+
+    codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec"))
+    article, cache_key = await _extract_safe(
+        str(body.url),
+        images=body.images,
+        level=body.level,
+        request=request,
+    )
+    return await prepare_article_envelope(article, codec, cache_key)
 
 
 async def _extract_safe(
@@ -386,7 +504,8 @@ async def _extract_safe(
     images: str = "normal",
     level: str = "medium",
     level_header: str | None = None,
-) -> SaylatArticle:
+    request: Request | None = None,
+) -> tuple[SaylatArticle, str]:
     try:
         parsed = validate_public_http_url(url)
     except ValueError as exc:
@@ -396,26 +515,48 @@ async def _extract_safe(
     images_mode = images_mode_for_level(compression, images)
     cache_key = f"extract:{parsed}:{images_mode}:{compression}"
 
+    timeout = outbound_timeout_sec(request)
+
     async def _load() -> SaylatArticle:
-        opened = await try_open_site(parsed, images_mode=images_mode)
+        opened = await try_open_site(parsed, images_mode=images_mode, timeout_sec=timeout)
         if opened is not None:
             if opened.kind == "article" and opened.article is not None:
                 article = opened.article
             elif opened.kind == "feed" and opened.feed is not None:
                 article = feed_to_article(parsed, opened.feed)
             else:
-                article = await extract_article(parsed, images_mode=images_mode)
+                article = await extract_article(parsed, images_mode=images_mode, timeout_sec=timeout)
         else:
-            article = await extract_article(parsed, images_mode=images_mode)
+            article = await extract_article(parsed, images_mode=images_mode, timeout_sec=timeout)
         return apply_compression_level(article, compression)
 
     try:
-        return await response_cache.get_or_set(cache_key, _load)
+        article = await response_cache.get_or_set(cache_key, _load)
+        return article, cache_key
     except httpx.HTTPError as exc:
         try:
-            plain = await extract_plain_fallback(parsed)
-            return apply_compression_level(plain, compression)
+            plain = await extract_plain_fallback(parsed, timeout_sec=timeout)
+            article = apply_compression_level(plain, compression)
+            return article, cache_key
         except Exception:
             raise HTTPException(status_code=502, detail=f"Upstream fetch failed: {exc}") from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+from .main_additions import cache_invalidate, rss_discover, rss_feed_get
+
+
+@app.get("/api/rss/feed")
+async def api_rss_feed(url: str = Query(...)) -> dict:
+    return await rss_feed_get(url=url)
+
+
+@app.get("/api/rss/discover")
+async def api_rss_discover(url: str = Query(...)) -> dict:
+    return await rss_discover(url=url)
+
+
+@app.post("/api/cache/invalidate")
+async def api_cache_invalidate(url: str = Query(...)) -> dict:
+    return await cache_invalidate(url=url)

@@ -5,6 +5,7 @@ import android.os.Build
 import com.baddysays.saylat.BuildConfig
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.baddysays.saylat.search.SearchEngine
@@ -34,6 +35,7 @@ class SaylatPrefs(private val context: Context) {
     private val favoritesKey = stringPreferencesKey("favorite_links")
     private val translateTargetKey = stringPreferencesKey("translate_target_lang")
     private val appThemeKey = stringPreferencesKey("app_theme_id")
+    private val uiLanguageKey = stringPreferencesKey("ui_language_id")
     private val slowNetworkKey = booleanPreferencesKey("slow_network_mode")
     private val liteImagesKey = booleanPreferencesKey("lite_images_enabled")
     private val pageLoadStatsKey = booleanPreferencesKey("page_load_stats_enabled")
@@ -43,7 +45,11 @@ class SaylatPrefs(private val context: Context) {
     private val onboardingDoneKey = booleanPreferencesKey("onboarding_done")
     private val customServerKey = booleanPreferencesKey("custom_server_enabled")
     private val tamagotchiKey = booleanPreferencesKey("tamagotchi_enabled")
+    private val petSkipReadyGateKey = booleanPreferencesKey("pet_skip_ready_gate")
     private val visitHistoryKey = stringPreferencesKey("visit_history")
+    private val petProfileKey = stringPreferencesKey("pet_profile")
+    private val readerThemeKey = stringPreferencesKey("reader_theme")
+    private val readerFontSizeKey = floatPreferencesKey("reader_font_size")
 
     val baseUrl: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[serverKey] ?: defaultProxyUrl()
@@ -75,6 +81,10 @@ class SaylatPrefs(private val context: Context) {
 
     val appThemeId: Flow<AppThemeId> = context.dataStore.data.map { prefs ->
         AppThemeId.fromId(prefs[appThemeKey])
+    }
+
+    val uiLanguage: Flow<AppLanguage> = context.dataStore.data.map { prefs ->
+        AppLanguage.fromId(prefs[uiLanguageKey])
     }
 
     val slowNetworkMode: Flow<Boolean?> = context.dataStore.data.map { prefs ->
@@ -113,8 +123,16 @@ class SaylatPrefs(private val context: Context) {
         prefs[tamagotchiKey] ?: true
     }
 
+    val petSkipReadyGate: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[petSkipReadyGateKey] ?: false
+    }
+
     val visitHistory: Flow<List<VisitEntry>> = context.dataStore.data.map { prefs ->
         decodeVisits(prefs[visitHistoryKey])
+    }
+
+    val petProfile: Flow<PetProfile> = context.dataStore.data.map { prefs ->
+        decodePetProfile(prefs[petProfileKey])
     }
 
     /** Атомарный снимок настроек — без гонок между отдельными collect. */
@@ -129,12 +147,15 @@ class SaylatPrefs(private val context: Context) {
         val recentSearches: List<String>,
         val translateTargetLang: String,
         val appTheme: AppThemeId,
+        val uiLanguage: AppLanguage,
         val pageLoadStatsEnabled: Boolean,
         val readerMode: ReaderMode,
         val dismissedReaderBanners: Set<String>,
         val customServerEnabled: Boolean,
         val tamagotchiEnabled: Boolean,
         val visitHistory: List<VisitEntry>,
+        val readerTheme: String,
+        val readerFontSize: Float,
     )
 
     val settingsBundle: Flow<SettingsBundle> = context.dataStore.data.map { prefs ->
@@ -149,13 +170,24 @@ class SaylatPrefs(private val context: Context) {
             recentSearches = decodeRecent(prefs[recentSearchesKey]),
             translateTargetLang = prefs[translateTargetKey] ?: DEFAULT_TRANSLATE_TARGET,
             appTheme = AppThemeId.fromId(prefs[appThemeKey]),
+            uiLanguage = AppLanguage.fromId(prefs[uiLanguageKey]),
             pageLoadStatsEnabled = prefs[pageLoadStatsKey] ?: true,
             readerMode = ReaderMode.fromId(prefs[readerModeKey]),
             dismissedReaderBanners = decodeSet(prefs[dismissedBannersKey]),
             customServerEnabled = prefs[customServerKey] ?: false,
             tamagotchiEnabled = prefs[tamagotchiKey] ?: true,
             visitHistory = decodeVisits(prefs[visitHistoryKey]),
+            readerTheme = prefs[readerThemeKey] ?: "AUTO",
+            readerFontSize = prefs[readerFontSizeKey] ?: 15f,
         )
+    }
+
+    suspend fun setReaderTheme(name: String) {
+        context.dataStore.edit { it[readerThemeKey] = name }
+    }
+
+    suspend fun setReaderFontSize(sp: Float) {
+        context.dataStore.edit { it[readerFontSizeKey] = sp.coerceIn(12f, 22f) }
     }
 
     suspend fun setBaseUrl(url: String) {
@@ -232,6 +264,10 @@ class SaylatPrefs(private val context: Context) {
         context.dataStore.edit { it[appThemeKey] = theme.id }
     }
 
+    suspend fun setUiLanguage(language: AppLanguage) {
+        context.dataStore.edit { it[uiLanguageKey] = language.id }
+    }
+
     suspend fun setSlowNetworkMode(enabled: Boolean) {
         context.dataStore.edit { it[slowNetworkKey] = enabled }
     }
@@ -277,6 +313,157 @@ class SaylatPrefs(private val context: Context) {
 
     suspend fun setTamagotchiEnabled(enabled: Boolean) {
         context.dataStore.edit { it[tamagotchiKey] = enabled }
+    }
+
+    suspend fun setPetSkipReadyGate(skip: Boolean) {
+        context.dataStore.edit { it[petSkipReadyGateKey] = skip }
+    }
+
+    suspend fun savePetProfile(profile: PetProfile) {
+        context.dataStore.edit { it[petProfileKey] = encodePetProfile(profile) }
+    }
+
+    suspend fun recordPetAppOpen() {
+        val today = epochDay()
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            val streak = when {
+                current.lastOpenDay == today -> current.streak
+                current.lastOpenDay == today - 1 -> (current.streak + 1).coerceAtMost(365)
+                else -> 1
+            }
+            prefs[petProfileKey] = encodePetProfile(
+                current.copy(
+                    lastOpenDay = today,
+                    streak = streak.coerceAtLeast(1),
+                ),
+            )
+        }
+    }
+
+    suspend fun addPetXp(amount: Int) {
+        if (amount <= 0) return
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            prefs[petProfileKey] = encodePetProfile(current.copy(xp = current.xp + amount))
+        }
+    }
+
+    suspend fun petHomeCare() {
+        val now = System.currentTimeMillis()
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            prefs[petProfileKey] = encodePetProfile(
+                current.copy(
+                    lastCareAt = now,
+                    xp = current.xp + 3,
+                ),
+            )
+        }
+    }
+
+    suspend fun setPetName(name: String) {
+        val trimmed = name.trim().take(24).ifBlank { PetSaladEconomy.DEFAULT_PET_NAME }
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            prefs[petProfileKey] = encodePetProfile(current.copy(name = trimmed))
+        }
+    }
+
+    suspend fun hatchPetEgg() {
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            if (!current.petHatched) {
+                prefs[petProfileKey] = encodePetProfile(current.copy(petHatched = true))
+            }
+        }
+    }
+
+    /** Начисляет салатики за сэкономленные при загрузке байты. */
+    suspend fun creditPetBytesSaved(savedBytes: Long): PetProfile? {
+        if (savedBytes <= 0) return null
+        var updated: PetProfile? = null
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            updated = PetSaladEconomy.applySavedBytes(current, savedBytes)
+            prefs[petProfileKey] = encodePetProfile(updated!!)
+        }
+        return updated
+    }
+
+    suspend fun spendPetSalad(): Boolean {
+        var ok = false
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            val next = PetSaladEconomy.spendSalad(current) ?: return@edit
+            ok = true
+            prefs[petProfileKey] = encodePetProfile(next)
+        }
+        return ok
+    }
+
+    suspend fun buyPetShopItem(itemId: String): PetShopResult {
+        val item = PetShopCatalog.find(itemId) ?: return PetShopResult.NotFound
+        var result = PetShopResult.InsufficientFunds
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            if (current.owns(itemId)) {
+                result = PetShopResult.AlreadyOwned
+                return@edit
+            }
+            if (item.priceBytes > 0) {
+                val paid = PetWallet.spend(current, item.priceBytes) ?: return@edit
+                prefs[petProfileKey] = encodePetProfile(
+                    paid.copy(ownedItemIds = paid.ownedItemIds + itemId),
+                )
+            } else {
+                prefs[petProfileKey] = encodePetProfile(
+                    current.copy(ownedItemIds = current.ownedItemIds + itemId),
+                )
+            }
+            result = PetShopResult.Success
+        }
+        return result
+    }
+
+    suspend fun equipPetShopItem(itemId: String): Boolean {
+        val item = PetShopCatalog.find(itemId) ?: return false
+        var ok = false
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            if (!current.owns(itemId)) return@edit
+            val next = when {
+                item.isHat -> current.copy(
+                    equippedHatId = itemId,
+                    chairEquipped = false,
+                )
+                itemId == PetShopCatalog.TOY_BALL -> current.copy(
+                    ballEquipped = true,
+                    chairEquipped = false,
+                )
+                itemId == PetShopCatalog.TOY_CHAIR -> current.copy(
+                    chairEquipped = true,
+                    ballEquipped = false,
+                )
+                else -> return@edit
+            }
+            ok = true
+            prefs[petProfileKey] = encodePetProfile(next)
+        }
+        return ok
+    }
+
+    suspend fun unequipPetToy(): Boolean {
+        var ok = false
+        context.dataStore.edit { prefs ->
+            val current = decodePetProfile(prefs[petProfileKey])
+            if (!current.ballEquipped && !current.chairEquipped) return@edit
+            ok = true
+            prefs[petProfileKey] = encodePetProfile(
+                current.copy(ballEquipped = false, chairEquipped = false),
+            )
+        }
+        return ok
     }
 
     suspend fun ensureConsumerReady() {
@@ -383,5 +570,54 @@ class SaylatPrefs(private val context: Context) {
             items.joinToString(RECENT_SEP) { entry ->
                 "${entry.url}$FIELD_SEP${entry.title.replace(FIELD_SEP, " ")}$FIELD_SEP${entry.visitedAt}"
             }
+
+        private fun epochDay(): Long = System.currentTimeMillis() / 86_400_000L
+
+        private fun decodePetProfile(raw: String?): PetProfile {
+            if (raw.isNullOrBlank()) return PetProfile()
+            val parts = raw.split(FIELD_SEP)
+            val lifetime = parts.getOrNull(7)?.toLongOrNull() ?: 0L
+            var wallet = parts.getOrNull(8)?.toLongOrNull() ?: 0L
+            if (parts.size <= 8 && lifetime > 0L) wallet = lifetime
+            val ownedRaw = parts.getOrNull(9)
+            val owned = if (ownedRaw.isNullOrBlank()) PetShopCatalog.defaultOwned else decodeSet(ownedRaw)
+            val hat = parts.getOrNull(10)?.trim().orEmpty().ifBlank { PetShopCatalog.HAT_LEAVES }
+            return PetProfile(
+                name = parts.getOrNull(0)?.trim().orEmpty().ifBlank { PetSaladEconomy.DEFAULT_PET_NAME },
+                xp = parts.getOrNull(1)?.toIntOrNull() ?: 0,
+                streak = parts.getOrNull(2)?.toIntOrNull() ?: 0,
+                lastOpenDay = parts.getOrNull(3)?.toLongOrNull() ?: 0L,
+                lastCareAt = parts.getOrNull(4)?.toLongOrNull() ?: 0L,
+                salads = parts.getOrNull(5)?.toIntOrNull() ?: 0,
+                bytesProgress = parts.getOrNull(6)?.toLongOrNull() ?: 0L,
+                lifetimeBytesSaved = lifetime,
+                walletBytes = wallet,
+                ownedItemIds = owned,
+                equippedHatId = hat,
+                ballEquipped = parts.getOrNull(11) == "1",
+                chairEquipped = parts.getOrNull(12) == "1",
+                saladsEatenBytes = parts.getOrNull(13)?.toLongOrNull() ?: 0L,
+                petHatched = parts.getOrNull(14) == "1",
+            )
+        }
+
+        private fun encodePetProfile(profile: PetProfile): String =
+            listOf(
+                profile.name.replace(FIELD_SEP, " "),
+                profile.xp.toString(),
+                profile.streak.toString(),
+                profile.lastOpenDay.toString(),
+                profile.lastCareAt.toString(),
+                profile.salads.toString(),
+                profile.bytesProgress.toString(),
+                profile.lifetimeBytesSaved.toString(),
+                profile.walletBytes.toString(),
+                encodeSet(profile.ownedItemIds),
+                (profile.equippedHatId ?: PetShopCatalog.HAT_LEAVES),
+                if (profile.ballEquipped) "1" else "0",
+                if (profile.chairEquipped) "1" else "0",
+                profile.saladsEatenBytes.toString(),
+                if (profile.petHatched) "1" else "0",
+            ).joinToString(FIELD_SEP)
     }
 }
