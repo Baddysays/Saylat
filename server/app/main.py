@@ -63,10 +63,16 @@ from .models import StripPageResponse, VisualPageResponse
 
 @asynccontextmanager
 async def _app_lifespan(_app: FastAPI):
-    yield
-    from .browser_strips import shutdown_browser
+    from .http_client import close_shared_http_client, init_shared_http_client
 
-    await shutdown_browser()
+    await init_shared_http_client()
+    try:
+        yield
+    finally:
+        from .browser_strips import shutdown_browser
+
+        await shutdown_browser()
+        await close_shared_http_client()
 
 
 app = FastAPI(
@@ -348,18 +354,20 @@ async def proxy_asset(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     page_url = target
     try:
-        async with httpx.AsyncClient(follow_redirects=True) as client:
-            data_url, _, _ = await fetch_image_data_url(
-                client, target, page_url, profile=TINY_PROFILE
-            )
-            if data_url and "," in data_url:
-                raw = base64.b64decode(data_url.split(",", 1)[1])
-                return Response(content=raw, media_type="image/jpeg")
-            resp = await client.get(target, timeout=settings.request_timeout_sec)
-            resp.raise_for_status()
-            content = resp.content[: settings.max_image_bytes]
-            ctype = resp.headers.get("content-type", "application/octet-stream")
-            return Response(content=content, media_type=ctype)
+        from .http_client import shared_http_client
+
+        client = shared_http_client()
+        data_url, _, _ = await fetch_image_data_url(
+            client, target, page_url, profile=TINY_PROFILE
+        )
+        if data_url and "," in data_url:
+            raw = base64.b64decode(data_url.split(",", 1)[1])
+            return Response(content=raw, media_type="image/jpeg")
+        resp = await client.get(target, timeout=settings.request_timeout_sec)
+        resp.raise_for_status()
+        content = resp.content[: settings.max_image_bytes]
+        ctype = resp.headers.get("content-type", "application/octet-stream")
+        return Response(content=content, media_type=ctype)
     except httpx.HTTPError as exc:
         raise HTTPException(status_code=502, detail=f"Asset fetch failed: {exc}") from exc
 

@@ -3,19 +3,20 @@ import time
 from urllib.parse import urljoin, urlparse
 
 import bleach
-import httpx
 from bs4 import BeautifulSoup, NavigableString, Tag
 from readability import Document
 
 from .config import settings
 from .images import NORMAL_PROFILE, TINY_PROFILE, fetch_image_data_url
-from .models import ArticleLink, ArticleStats, Block, LayoutHint, SaylatArticle, TextSpan
+from .models import ArticleStats, Block, LayoutHint, SaylatArticle, TextSpan
 from .pikabu_extract import (
     blocks_after_images_off,
     blocks_from_pikabu_html,
     is_pikabu_story_url,
     is_pikabu_url,
 )
+from .compression_levels import collect_links_from_blocks
+from .http_client import shared_http_client
 from .http_text import decode_response_text
 from .http_ua import normalize_fetch_url, ua_for_url
 
@@ -241,29 +242,6 @@ def _strip_image_blocks(blocks: list[Block]) -> list[Block]:
     return [b for b in blocks if b.type != "image"]
 
 
-def _collect_article_links(blocks: list[Block]) -> list[ArticleLink]:
-    seen: set[str] = set()
-    links: list[ArticleLink] = []
-
-    def add(text: str | None, href: str | None) -> None:
-        h = (href or "").strip()
-        if not h.startswith(("http://", "https://")):
-            return
-        t = _clean_text(text or "")
-        key = f"{h}|{t}"
-        if key in seen:
-            return
-        seen.add(key)
-        links.append(ArticleLink(text=t or h, href=h))
-
-    for block in blocks:
-        if block.type == "link":
-            add(block.text, block.href)
-        for span in block.spans or []:
-            add(span.text, span.href)
-    return links
-
-
 def _dedupe_blocks(blocks: list[Block]) -> list[Block]:
     """Убираем подряд одинаковый текст (Пикабу: alt картинки = абзац)."""
     out: list[Block] = []
@@ -313,124 +291,121 @@ async def extract_article(
     fetch_url = normalize_fetch_url(url)
     ua = ua_for_url(fetch_url)
     timeout = timeout_sec or settings.request_timeout_sec
-    async with httpx.AsyncClient(
-        follow_redirects=True,
-        headers={"User-Agent": ua},
-    ) as client:
-        resp = await client.get(fetch_url, timeout=timeout)
-        resp.raise_for_status()
-        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
-        original_bytes = len(resp.content)
-        page_lang = _page_lang(html)
+    client = shared_http_client()
+    resp = await client.get(fetch_url, timeout=timeout, headers={"User-Agent": ua})
+    resp.raise_for_status()
+    html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
+    original_bytes = len(resp.content)
+    page_lang = _page_lang(html)
 
-        excerpt = ""
-        byline = ""
-        site_profile = "generic"
-        if is_pikabu_story_url(url):
-            title, excerpt, byline, blocks = blocks_from_pikabu_html(html, url)
-            site_profile = "pikabu"
-        else:
-            doc = Document(html)
-            title = _clean_text(doc.title() or "") or _meta_title(html)
-            summary_html = doc.summary()
-            cleaned = bleach.clean(
-                summary_html,
-                tags=ALLOWED_TAGS,
-                attributes=ALLOWED_ATTRS,
-                strip=True,
-            )
-            soup = BeautifulSoup(cleaned, "lxml")
-            blocks = _html_to_blocks(soup, url)
-            if not is_pikabu_story_url(url):
-                from .extract_v2 import try_improve_blocks
-
-                blocks = try_improve_blocks(html, url, blocks)
-            excerpt = _clean_text(doc.short_title() or "")
-        mode = (images_mode or "normal").strip().lower()
-        wc = _blocks_word_count(blocks)
-        if wc < MIN_WORDS_V2_FALLBACK and not is_pikabu_story_url(url):
-            from .extract_v2 import extract_article_v2
-
-            v2_data = await extract_article_v2(fetch_url, html=html, images_mode=mode)
-            v2_blocks = [Block.model_validate(b) for b in v2_data.get("blocks", [])]
-            if _blocks_word_count(v2_blocks) > wc:
-                blocks = v2_blocks
-                v2_title = _clean_text(str(v2_data.get("title") or ""))
-                if v2_title:
-                    title = v2_title
-                v2_excerpt = _clean_text(str(v2_data.get("excerpt") or ""))
-                if v2_excerpt:
-                    excerpt = v2_excerpt
-        if not blocks:
-            host = urlparse(url).hostname or url
-            blocks.append(
-                Block(
-                    type="paragraph",
-                    text=(
-                        f"Не удалось извлечь текст с {host}. "
-                        "Сайт может отдавать пустую оболочку (SPA) или блокировать прокси."
-                    ),
-                )
-            )
-
-        image_count = 0
-        images_omitted = 0
-        if mode == "layout":
-            images_omitted = sum(1 for b in blocks if b.type == "image" and b.src)
-            blocks = _dedupe_blocks(blocks_layout_no_images(blocks))
-        elif mode == "off":
-            blocks = blocks_after_images_off(blocks) if is_pikabu_url(url) else _strip_image_blocks(blocks)
-        elif mode == "refs":
-            from urllib.parse import urljoin
-
-            for block in blocks:
-                if block.type != "image" or not block.src:
-                    continue
-                absolute = urljoin(url, block.src)
-                if absolute.startswith(("http://", "https://")):
-                    block.src = absolute
-                    image_count += 1
-        else:
-            profile = TINY_PROFILE if mode == "tiny" else NORMAL_PROFILE
-            for block in blocks:
-                if block.type != "image" or not block.src or image_count >= profile.max_images:
-                    continue
-                data_url, w, h = await fetch_image_data_url(
-                    client, block.src, url, profile=profile
-                )
-                if data_url:
-                    block.src = data_url
-                    block.width = w
-                    block.height = h
-                    image_count += 1
-        if not excerpt and blocks:
-            first_p = next((b.text for b in blocks if b.type == "paragraph" and b.text), "")
-            excerpt = first_p[:220]
-
-        layout_hint = _guess_layout(blocks)
-        if mode == "layout" and sum(1 for b in blocks if b.type == "image") >= 2:
-            layout_hint = "gallery"
-
-        article = SaylatArticle(
-            url=fetch_url,
-            title=title or urlparse(url).hostname or "Saylat",
-            excerpt=excerpt,
-            byline=byline,
-            lang=page_lang,
-            blocks=blocks,
-            links=_collect_article_links(blocks),
-            layout_hint=layout_hint,
-            site_profile=site_profile,
-            stats=ArticleStats(
-                original_bytes=original_bytes,
-                fetch_ms=int((time.perf_counter() - started) * 1000),
-                images_omitted=images_omitted,
-            ),
+    excerpt = ""
+    byline = ""
+    site_profile = "generic"
+    if is_pikabu_story_url(url):
+        title, excerpt, byline, blocks = blocks_from_pikabu_html(html, url)
+        site_profile = "pikabu"
+    else:
+        doc = Document(html)
+        title = _clean_text(doc.title() or "") or _meta_title(html)
+        summary_html = doc.summary()
+        cleaned = bleach.clean(
+            summary_html,
+            tags=ALLOWED_TAGS,
+            attributes=ALLOWED_ATTRS,
+            strip=True,
         )
-        payload = article.model_dump_json()
-        article.stats.payload_bytes = max(1, len(payload.encode("utf-8")))
-        article.stats.images_inlined = image_count
-        return article
+        soup = BeautifulSoup(cleaned, "lxml")
+        blocks = _html_to_blocks(soup, url)
+        if not is_pikabu_story_url(url):
+            from .extract_v2 import try_improve_blocks
+
+            blocks = try_improve_blocks(html, url, blocks)
+        excerpt = _clean_text(doc.short_title() or "")
+    mode = (images_mode or "normal").strip().lower()
+    wc = _blocks_word_count(blocks)
+    if wc < MIN_WORDS_V2_FALLBACK and not is_pikabu_story_url(url):
+        from .extract_v2 import extract_article_v2
+
+        v2_data = await extract_article_v2(fetch_url, html=html, images_mode=mode)
+        v2_blocks = [Block.model_validate(b) for b in v2_data.get("blocks", [])]
+        if _blocks_word_count(v2_blocks) > wc:
+            blocks = v2_blocks
+            v2_title = _clean_text(str(v2_data.get("title") or ""))
+            if v2_title:
+                title = v2_title
+            v2_excerpt = _clean_text(str(v2_data.get("excerpt") or ""))
+            if v2_excerpt:
+                excerpt = v2_excerpt
+    if not blocks:
+        host = urlparse(url).hostname or url
+        blocks.append(
+            Block(
+                type="paragraph",
+                text=(
+                    f"Не удалось извлечь текст с {host}. "
+                    "Сайт может отдавать пустую оболочку (SPA) или блокировать прокси."
+                ),
+            )
+        )
+
+    image_count = 0
+    images_omitted = 0
+    if mode == "layout":
+        images_omitted = sum(1 for b in blocks if b.type == "image" and b.src)
+        blocks = _dedupe_blocks(blocks_layout_no_images(blocks))
+    elif mode == "off":
+        blocks = blocks_after_images_off(blocks) if is_pikabu_url(url) else _strip_image_blocks(blocks)
+    elif mode == "refs":
+        from urllib.parse import urljoin
+
+        for block in blocks:
+            if block.type != "image" or not block.src:
+                continue
+            absolute = urljoin(url, block.src)
+            if absolute.startswith(("http://", "https://")):
+                block.src = absolute
+                image_count += 1
+    else:
+        profile = TINY_PROFILE if mode == "tiny" else NORMAL_PROFILE
+        for block in blocks:
+            if block.type != "image" or not block.src or image_count >= profile.max_images:
+                continue
+            data_url, w, h = await fetch_image_data_url(
+                client, block.src, url, profile=profile
+            )
+            if data_url:
+                block.src = data_url
+                block.width = w
+                block.height = h
+                image_count += 1
+    if not excerpt and blocks:
+        first_p = next((b.text for b in blocks if b.type == "paragraph" and b.text), "")
+        excerpt = first_p[:220]
+
+    layout_hint = _guess_layout(blocks)
+    if mode == "layout" and sum(1 for b in blocks if b.type == "image") >= 2:
+        layout_hint = "gallery"
+
+    article = SaylatArticle(
+        url=fetch_url,
+        title=title or urlparse(url).hostname or "Saylat",
+        excerpt=excerpt,
+        byline=byline,
+        lang=page_lang,
+        blocks=blocks,
+        links=collect_links_from_blocks(blocks),
+        layout_hint=layout_hint,
+        site_profile=site_profile,
+        stats=ArticleStats(
+            original_bytes=original_bytes,
+            fetch_ms=int((time.perf_counter() - started) * 1000),
+            images_omitted=images_omitted,
+        ),
+    )
+    payload = article.model_dump_json()
+    article.stats.payload_bytes = max(1, len(payload.encode("utf-8")))
+    article.stats.images_inlined = image_count
+    return article
 
 
 async def extract_plain_fallback(url: str, *, timeout_sec: float | None = None) -> SaylatArticle:
@@ -439,14 +414,11 @@ async def extract_plain_fallback(url: str, *, timeout_sec: float | None = None) 
     fetch_url = normalize_fetch_url(url)
     ua = ua_for_url(fetch_url)
     timeout = timeout_sec or settings.request_timeout_sec
-    async with httpx.AsyncClient(
-        follow_redirects=True,
-        headers={"User-Agent": ua},
-    ) as client:
-        resp = await client.get(fetch_url, timeout=timeout)
-        resp.raise_for_status()
-        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
-        original_bytes = len(resp.content)
+    client = shared_http_client()
+    resp = await client.get(fetch_url, timeout=timeout, headers={"User-Agent": ua})
+    resp.raise_for_status()
+    html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
+    original_bytes = len(resp.content)
 
     soup = BeautifulSoup(html, "lxml")
     for tag in soup(["script", "style", "noscript", "svg", "nav", "footer", "header"]):

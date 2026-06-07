@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     cache_max_entries: int = 400
     redis_url: str = ""
 
+    # Fernet-ключ для шифрования data/credentials.json (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")
+    credentials_key: str = ""
+
     # Защита личного VPS (пусто = без ключа)
     api_key: str = ""
     rate_limit_per_minute: int = 120

@@ -5,10 +5,10 @@ from __future__ import annotations
 import re
 from urllib.parse import quote, urljoin, urlparse
 
-import httpx
 from bs4 import BeautifulSoup, Tag
 
 from .config import settings
+from .http_client import shared_http_client
 from .http_ua import normalize_fetch_url, ua_for_url
 from .url_safety import validate_public_http_url
 
@@ -99,15 +99,16 @@ async def fetch_proxy_html(target_url: str, *, request_base: str) -> str:
 
     fetch_url = normalize_fetch_url(validated)
     ua = ua_for_url(fetch_url)
-    async with httpx.AsyncClient(
-        follow_redirects=True,
+    client = shared_http_client()
+    resp = await client.get(
+        fetch_url,
+        timeout=settings.request_timeout_sec,
         headers={"User-Agent": ua},
-    ) as client:
-        resp = await client.get(fetch_url, timeout=settings.request_timeout_sec)
-        resp.raise_for_status()
-        from .http_text import decode_response_text
+    )
+    resp.raise_for_status()
+    from .http_text import decode_response_text
 
-        html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
+    html = decode_response_text(resp, max_bytes=settings.max_html_bytes)
 
     return build_proxy_document(html, fetch_url, request_base)
 

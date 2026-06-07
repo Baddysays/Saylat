@@ -48,7 +48,7 @@ def apply_compression_level(article: SaylatArticle, level: CompressionLevel) -> 
     return _to_full(article)
 
 
-def _collect_links(blocks: list[Block]) -> list[ArticleLink]:
+def collect_links_from_blocks(blocks: list[Block]) -> list[ArticleLink]:
     links: list[ArticleLink] = []
     seen: set[str] = set()
 
@@ -100,7 +100,7 @@ def _to_light(article: SaylatArticle) -> SaylatArticle:
     plain = _plain_text_from_blocks(article.blocks)
     if not plain.strip():
         plain = (article.excerpt or article.title or "").strip()
-    links = _collect_links(article.blocks)
+    links = collect_links_from_blocks(article.blocks)
     important_images: list[Block] = []
     for block in article.blocks:
         if block.type != "image" or not block.src:
@@ -163,7 +163,7 @@ def _to_medium(article: SaylatArticle) -> SaylatArticle:
             image_count += 1
         blocks.append(simple)
     data = article.model_dump()
-    links = _collect_links(blocks)
+    links = collect_links_from_blocks(blocks)
     data.update(
         {
             "compression_level": "medium",
@@ -200,7 +200,7 @@ def _to_full(article: SaylatArticle) -> SaylatArticle:
         {
             "compression_level": "full",
             "plain_text": _plain_text_from_blocks(article.blocks),
-            "links": [link.model_dump() for link in _collect_links(article.blocks)],
+            "links": [link.model_dump() for link in collect_links_from_blocks(article.blocks)],
             "css_hints": _default_css_hints(article).model_dump(),
         }
     )

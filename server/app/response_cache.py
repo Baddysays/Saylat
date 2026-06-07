@@ -38,7 +38,8 @@ class InMemoryCache:
         self._store: dict[str, _Entry] = {}
         self._hits = 0
         self._misses = 0
-        self._lock = asyncio.Lock()
+        self._store_lock = asyncio.Lock()
+        self._key_locks: dict[str, asyncio.Lock] = {}
 
     def _ttl_for(self, key: str) -> float:
         if key.startswith("extract:"):
@@ -51,13 +52,21 @@ class InMemoryCache:
             return TTL_SEARCH
         return TTL_DEFAULT
 
+    async def _key_lock(self, key: str) -> asyncio.Lock:
+        async with self._store_lock:
+            lock = self._key_locks.get(key)
+            if lock is None:
+                lock = asyncio.Lock()
+                self._key_locks[key] = lock
+            return lock
+
     async def get_or_set(
         self,
         key: str,
         loader: Callable[[], Awaitable[Any]],
         ttl: float | None = None,
     ) -> Any:
-        async with self._lock:
+        async with self._store_lock:
             entry = self._store.get(key)
             if entry is not None:
                 if time.monotonic() < entry.expires_at:
@@ -66,16 +75,24 @@ class InMemoryCache:
                     return entry.value
                 del self._store[key]
 
-        self._misses += 1
-        log.debug("cache miss: %s", key)
-        value = await loader()
-        effective_ttl = ttl if ttl is not None else self._ttl_for(key)
-        async with self._lock:
-            self._store[key] = _Entry(value, effective_ttl)
-            # Очистка устаревших записей раз в ~50 промахов
-            if self._misses % 50 == 0:
-                self._evict()
-        return value
+        key_lock = await self._key_lock(key)
+        async with key_lock:
+            async with self._store_lock:
+                entry = self._store.get(key)
+                if entry is not None and time.monotonic() < entry.expires_at:
+                    self._hits += 1
+                    log.debug("cache hit: %s", key)
+                    return entry.value
+
+            self._misses += 1
+            log.debug("cache miss: %s", key)
+            value = await loader()
+            effective_ttl = ttl if ttl is not None else self._ttl_for(key)
+            async with self._store_lock:
+                self._store[key] = _Entry(value, effective_ttl)
+                if self._misses % 50 == 0:
+                    self._evict()
+            return value
 
     def _evict(self) -> None:
         now = time.monotonic()
@@ -158,7 +175,17 @@ class RedisCache:
         return value
 
     def invalidate(self, key: str) -> None:
-        asyncio.create_task(self._redis.delete(key))
+        if not self._available:
+            self._fallback.invalidate(key)
+            return
+
+        async def _delete() -> None:
+            try:
+                await self._redis.delete(key)
+            except Exception as exc:
+                log.warning("redis delete error: %s", exc)
+
+        asyncio.create_task(_delete())
 
     def invalidate_prefix(self, prefix: str) -> int:
         return self._fallback.invalidate_prefix(prefix)
