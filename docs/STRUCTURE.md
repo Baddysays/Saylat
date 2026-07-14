@@ -1,6 +1,6 @@
 # Структура репозитория Saylat
 
-Актуальная версия приложения: **0.5.57** (`versionCode` 66) — см. [CHANGELOG.md](CHANGELOG.md).
+Актуальная версия приложения: **0.5.58** (`versionCode` 67) — см. [CHANGELOG.md](CHANGELOG.md).
 
 ```
 thin-browser/                    # монорепозиторий Saylat
@@ -12,9 +12,10 @@ thin-browser/                    # монорепозиторий Saylat
 ├── android/                     # клиент Android (Kotlin + Jetpack Compose)
 │   └── app/src/main/java/com/baddysays/saylat/
 │       ├── ui/                  # BrowserScreen, Home, Feed, TamagotchiPet, Settings…
-│       ├── data/                # Retrofit Api, модели
+│       ├── data/                # Api, ArticleFetcher, PayloadCodec, DeltaCodec, binary
+│       ├── network/             # OkHttp, Retry, TrafficSavingsInterceptor, 2G
+│       ├── tts/                 # ArticleTtsEngine + ServerTtsPlayer
 │       ├── prefs/               # DataStore (SaylatPrefs, settingsBundle)
-│       ├── network/             # SaylatHttpClient, RetryInterceptor, 2G-диагностика
 │       ├── tamagotchi/          # ёжик Saylat: эмоции, реплики, site reactions
 │       ├── ui/pet/              # рендер, диалоги, browser bridge
 │       ├── engine/              # умная вёрстка, мапперы лент
@@ -24,6 +25,12 @@ thin-browser/                    # монорепозиторий Saylat
 │   ├── app/
 │   │   ├── main.py              # HTTP API
 │   │   ├── extract.py           # статьи, уровни сжатия
+│   │   ├── progressive.py       # SSE progressive extract
+│   │   ├── delta_codec.py       # ETag + бинарная дельта
+│   │   ├── protobuf_codec.py    # saylat-binary
+│   │   ├── traffic_middleware.py
+│   │   ├── tts_service.py · podcast.py
+│   │   ├── sprite_sheet.py · ascii_art.py
 │   │   ├── unified_feed.py      # лента TG/VK/почта + пагинация
 │   │   ├── security.py          # API-key, rate limit
 │   │   ├── browser_strips.py    # Playwright STRIPS

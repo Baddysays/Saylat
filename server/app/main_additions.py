@@ -74,16 +74,26 @@ async def cache_invalidate(
     Сбросить кэш для конкретного URL (для pull-to-refresh на клиенте).
     """
     from .response_cache import response_cache
-    from .url_safety import validate_public_http_url
 
     try:
         validated = validate_public_http_url(url)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    count = response_cache.invalidate_prefix(f"extract:{validated}")
-    count += response_cache.invalidate_prefix(f"wire:extract:{validated}")
-    count += response_cache.invalidate_prefix(f"wirebin:extract:{validated}")
-    count += response_cache.invalidate_prefix(f"image:{validated}")
+
+    if hasattr(response_cache, "invalidate_by_url"):
+        count = await response_cache.invalidate_by_url(validated)
+    else:
+        count = response_cache.invalidate_prefix(f"extract:{validated}")
+        count += response_cache.invalidate_prefix(f"wire:extract:{validated}")
+        count += response_cache.invalidate_prefix(f"wirebin:extract:{validated}")
+        count += response_cache.invalidate_prefix(f"image:{validated}")
+        count += response_cache.invalidate_prefix(f"sprite:{validated}")
+        count += response_cache.invalidate_prefix(f"ascii:{validated}")
+        count += response_cache.invalidate_prefix(f"delta:{validated}")
+        count += response_cache.invalidate_prefix(f"visual:{validated}")
+        count += response_cache.invalidate_prefix(f"strips:{validated}")
+        count += response_cache.invalidate_prefix(f"open:{validated}")
+
     return {"invalidated": count, "url": validated}
 
 

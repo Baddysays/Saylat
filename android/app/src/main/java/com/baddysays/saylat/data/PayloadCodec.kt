@@ -14,14 +14,17 @@ import java.util.zip.GZIPInputStream
  * Сервер сжимает JSON статьи (zstd или gzip), приложение распаковывает в фоне.
  */
 object PayloadCodec {
+    const val CODEC_SAYLAT_BINARY = "saylat-binary"
     const val CODEC_ZSTD_BINARY = "zstd-binary"
     const val CODEC_GZIP_BINARY = "gzip-binary"
     const val CODEC_GZIP_B64 = "gzip-b64"
     const val MEDIA_TYPE_SAYLAT_ZSTD = "application/vnd.saylat.v1+zstd"
     const val MEDIA_TYPE_SAYLAT_GZIP = "application/vnd.saylat.v1+gzip"
+    const val MEDIA_TYPE_SAYLAT_BINARY = "application/vnd.saylat.v1+protobuf"
 
     const val HEADER_CODEC = "X-Saylat-Payload-Codec"
-    const val HEADER_CODEC_VALUE = "$CODEC_ZSTD_BINARY,$CODEC_GZIP_BINARY,$CODEC_GZIP_B64,identity"
+    const val HEADER_CODEC_VALUE =
+        "$CODEC_SAYLAT_BINARY,$CODEC_ZSTD_BINARY,$CODEC_GZIP_BINARY,$CODEC_GZIP_B64,identity,delta"
     const val HDR_WIRE_BYTES = "X-Saylat-Wire-Bytes"
     const val HDR_UNCOMPRESSED_BYTES = "X-Saylat-Uncompressed-Bytes"
 
@@ -51,11 +54,16 @@ object PayloadCodec {
             val wireBytes = response.headers()[HDR_WIRE_BYTES]?.toIntOrNull() ?: bytes.size
             val uncompressed = response.headers()[HDR_UNCOMPRESSED_BYTES]?.toIntOrNull() ?: 0
             val codec = when {
+                payloadCodec == CODEC_SAYLAT_BINARY ||
+                    contentType.contains("protobuf", ignoreCase = true) -> CODEC_SAYLAT_BINARY
                 payloadCodec == CODEC_ZSTD_BINARY || contentType.contains("zstd", ignoreCase = true) ->
                     CODEC_ZSTD_BINARY
-                payloadCodec == CODEC_GZIP_BINARY || contentType.contains("saylat", ignoreCase = true) ->
+                payloadCodec == CODEC_GZIP_BINARY || contentType.contains("gzip", ignoreCase = true) ->
                     CODEC_GZIP_BINARY
                 else -> CODEC_GZIP_BINARY
+            }
+            if (codec == CODEC_SAYLAT_BINARY) {
+                return@withContext decodeSaylatBinary(bytes, wireBytes, uncompressed)
             }
             if (codec != CODEC_ZSTD_BINARY && codec != CODEC_GZIP_BINARY) {
                 val json = String(bytes, Charsets.UTF_8)
@@ -66,12 +74,31 @@ object PayloadCodec {
             decompressPayloadBytes(bytes, codec, wireBytes, uncompressed)
         }
 
+    private fun decodeSaylatBinary(bytes: ByteArray, wireBytes: Int, uncompressedBytes: Int): SaylatArticle {
+        val article = SaylatBinaryCodec.decode(bytes)
+        val stats = article.stats
+        return article.copy(
+            stats = stats.copy(
+                wire_bytes = if (wireBytes > 0) wireBytes else bytes.size,
+                payload_bytes = if (stats.payload_bytes > 0) stats.payload_bytes else uncompressedBytes,
+            ),
+        )
+    }
+
+    fun parseEnvelope(json: String): ArticleWireEnvelope =
+        envelopeAdapter.fromJson(json) ?: articleAdapter.fromJson(json)?.let {
+            ArticleWireEnvelope(article = it)
+        } ?: error("Bad article envelope")
+
     fun decompressPayloadBytes(
         payload: ByteArray,
         codec: String,
         wireBytes: Int,
         uncompressedBytes: Int,
     ): SaylatArticle {
+        if (codec == CODEC_SAYLAT_BINARY) {
+            return decodeSaylatBinary(payload, wireBytes, uncompressedBytes)
+        }
         val json = when (codec) {
             CODEC_ZSTD_BINARY -> ZstdInputStream(ByteArrayInputStream(payload)).bufferedReader()
                 .use { it.readText() }

@@ -3,6 +3,7 @@ package com.baddysays.saylat.data
 
 
 import com.baddysays.saylat.network.SaylatHttpClient
+import com.baddysays.saylat.network.TrafficSavingsInterceptor
 
 import com.squareup.moshi.Moshi
 
@@ -298,6 +299,16 @@ object ApiFactory {
 
     }
 
+    fun httpClient(
+        baseUrl: String,
+        slowNetwork: Boolean = false,
+        compressionLevel: String = CompressionLevel.MEDIUM,
+        apiKey: String = "",
+    ): OkHttpClient {
+        create(baseUrl, slowNetwork, compressionLevel, apiKey)
+        return cachedClient ?: error("HTTP client not built")
+    }
+
 
 
     private fun buildClient(key: ClientKey): SaylatApi {
@@ -327,11 +338,9 @@ object ApiFactory {
         }
 
         val interceptors = buildList {
-
+            add(TrafficSavingsInterceptor())
             add(levelHeader)
-
             apiKeyInterceptor?.let { add(it) }
-
         }
 
         val client = SaylatHttpClient.build(

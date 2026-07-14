@@ -1,7 +1,7 @@
 {
-  "version_code": 66,
-  "version_name": "0.5.57",
-  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.57/saylat.apk",
-  "release_notes": "0.5.57 — 2G и кириллица\n\n• Надёжное соединение на 2G/EDGE: длинные таймауты, повторы запросов, автоопределение медленного cellular\n• Сервер ждёт upstream до 90 с при X-Saylat-Slow-Network\n• Правильная кодировка русских сайтов (cp1251, koi8-r), JSON с charset=utf-8\n• Питомец Saylat: ёжик 48×48, реплики при загрузке, wire-сжатие gzip/zstd",
+  "version_code": 67,
+  "version_name": "0.5.58",
+  "apk_url": "https://github.com/Baddysays/Saylat/releases/download/v0.5.58/saylat.apk",
+  "release_notes": "0.5.58 — progressive, delta, TTS\n\n• saylat-binary + /api/extract/delta (ETag)\n• Progressive SSE на 2G без буферизации\n• Серверный TTS и подкаст (лимит 20 URL)\n• X-Saylat-Savings без двойного учёта\n• SSRF/лимиты для sprite и ascii image fetch",
   "mandatory": false
 }

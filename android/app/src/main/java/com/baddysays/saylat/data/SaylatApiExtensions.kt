@@ -1,11 +1,27 @@
 package com.baddysays.saylat.data
 
-import retrofit2.Response
+import android.content.Context
+import okhttp3.OkHttpClient
 
 /**
- * Загрузка статей: сначала бинарный gzip (меньше трафика), затем JSON-envelope.
+ * Загрузка статей: progressive (2G), saylat-binary, delta, JSON fallback.
  */
 suspend fun SaylatApi.fetchArticle(
+    context: Context,
+    client: OkHttpClient,
+    baseUrl: String,
+    url: String,
+    images: String = "normal",
+    level: String = CompressionLevel.MEDIUM,
+    slowNetwork: Boolean = false,
+    apiKey: String = "",
+    onPartial: suspend (SaylatArticle) -> Unit = {},
+): SaylatArticle = ArticleFetcher.fetchArticle(
+    context, client, this, baseUrl, url, images, level, slowNetwork, apiKey, onPartial,
+)
+
+/** @deprecated Используйте fetchArticle с контекстом — сохранено для layout lab. */
+suspend fun SaylatApi.fetchArticleLegacy(
     url: String,
     images: String = "normal",
     level: String = CompressionLevel.MEDIUM,
@@ -19,15 +35,20 @@ suspend fun SaylatApi.fetchArticle(
     return PayloadCodec.expandArticle(extract(url, images, level))
 }
 
-suspend fun SaylatApi.fetchOpen(request: OpenRequest): OpenResponse {
+suspend fun SaylatApi.fetchOpen(
+    context: Context,
+    client: OkHttpClient,
+    baseUrl: String,
+    request: OpenRequest,
+    slowNetwork: Boolean = false,
+    apiKey: String = "",
+    onPartial: suspend (SaylatArticle) -> Unit = {},
+): OpenResponse {
     if (request.target == "url" && !request.url.isNullOrBlank()) {
-        runCatching {
-            val binary = openBinary(request)
-            if (binary.isSuccessful) {
-                val article = PayloadCodec.decompressBinaryResponse(binary)
-                return OpenResponse(kind = "article", article = article)
-            }
-        }
+        val article = ArticleFetcher.fetchOpenArticle(
+            context, this, request, slowNetwork, baseUrl, client, apiKey, onPartial,
+        )
+        return OpenResponse(kind = "article", article = article)
     }
     return PayloadCodec.expandOpenResponse(open(request))
 }

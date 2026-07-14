@@ -26,6 +26,8 @@ class Block(BaseModel):
     items: list[str] | None = None
     spans: list[TextSpan] | None = None
     href: str | None = None
+    sprite_y: int | None = Field(default=None, description="Смещение Y в спрайт-листе (0 = верх)")
+    sprite_h: int | None = Field(default=None, description="Высота кадра в спрайт-листе")
 
 
 class ArticleStats(BaseModel):
@@ -81,7 +83,7 @@ class ArticleWireEnvelope(BaseModel):
     wire: WireCompressedPayload | None = None
 
 
-ImagesMode = Literal["normal", "tiny", "off", "layout", "refs"]
+ImagesMode = Literal["normal", "tiny", "off", "layout", "refs", "sprite"]
 
 
 class ExtractRequest(BaseModel):

@@ -114,6 +114,35 @@ class InMemoryCache:
     def clear(self) -> None:
         self._store.clear()
 
+    async def invalidate_by_url(self, url: str) -> int:
+        """Удалить все кэшированные записи, связанные с данным URL."""
+        async with self._store_lock:
+            keys_to_remove = [
+                k
+                for k in self._store
+                if url in k
+                and any(
+                    k.startswith(p)
+                    for p in (
+                        "extract:",
+                        "sprite:",
+                        "ascii:",
+                        "visual:",
+                        "strips:",
+                        "open:",
+                        "delta:",
+                        "wire:",
+                        "wirebin:",
+                    )
+                )
+            ]
+            for k in keys_to_remove:
+                del self._store[k]
+                self._key_locks.pop(k, None)
+            if keys_to_remove:
+                log.info("invalidated %d cache entries for %s", len(keys_to_remove), url[:80])
+            return len(keys_to_remove)
+
     def stats(self) -> dict:
         now = time.monotonic()
         alive = sum(1 for v in self._store.values() if v.expires_at > now)
@@ -189,6 +218,25 @@ class RedisCache:
 
     def invalidate_prefix(self, prefix: str) -> int:
         return self._fallback.invalidate_prefix(prefix)
+
+    async def invalidate_by_url(self, url: str) -> int:
+        """Удалить кэш по URL — Redis SCAN + fallback."""
+        if not self._available:
+            return await self._fallback.invalidate_by_url(url)
+        prefixes = (
+            "extract:", "sprite:", "ascii:", "visual:", "strips:",
+            "open:", "delta:", "wire:", "wirebin:",
+        )
+        try:
+            count = 0
+            for prefix in prefixes:
+                async for key in self._redis.scan_iter(match=f"{prefix}*{url}*"):
+                    await self._redis.delete(key)
+                    count += 1
+            return count
+        except Exception as exc:
+            log.warning("redis invalidate_by_url error: %s", exc)
+            return await self._fallback.invalidate_by_url(url)
 
     def stats(self) -> dict:
         return {"entries": -1, "hits": self._hits, "misses": self._misses}

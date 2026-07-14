@@ -4,12 +4,39 @@ from pathlib import Path
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 from .config import settings
 from .extract import extract_article, extract_plain_fallback
 from .security import ApiKeyMiddleware, RateLimitMiddleware
+from .traffic_middleware import SaylatTrafficMiddleware
+from .traffic_stats import TrafficStatsResponse, configure as configure_traffic_stats, get_traffic_stats
+from .progressive import progressive_extract, progressive_streaming_response
+from .tts_service import (
+    TtsInfoResponse,
+    TtsRequest,
+    article_to_speech,
+    prepare_text,
+    resolve_voice,
+    text_to_speech,
+    tts_info,
+)
+from .delta_codec import maybe_delta_response
+from .sprite_sheet import apply_sprite_to_article, extract_with_sprites
+from .podcast import (
+    PodcastInfoResponse,
+    PodcastRequest,
+    generate_podcast,
+    podcast_from_urls,
+    podcast_info,
+    podcast_streaming_response,
+)
+from .ascii_art import (
+    AsciiBlockData,
+    apply_ascii_to_article,
+    image_to_block_data,
+)
 from .unified_feed import build_unified_feed
 from .site_feeds import feed_to_article, try_open_site
 from .connect_api import (
@@ -82,6 +109,8 @@ app = FastAPI(
     lifespan=_app_lifespan,
 )
 
+configure_traffic_stats(max_records=settings.traffic_max_records)
+
 _cors_origins = settings.cors_origin_list()
 if _cors_origins:
     app.add_middleware(
@@ -90,6 +119,7 @@ if _cors_origins:
         allow_methods=["GET", "POST", "PUT"],
         allow_headers=["*"],
     )
+app.add_middleware(SaylatTrafficMiddleware)
 app.add_middleware(RateLimitMiddleware, limit_per_minute=settings.rate_limit_per_minute)
 app.add_middleware(ApiKeyMiddleware)
 
@@ -569,3 +599,250 @@ async def api_rss_discover(url: str = Query(...)) -> dict:
 @app.post("/api/cache/invalidate")
 async def api_cache_invalidate(url: str = Query(...)) -> dict:
     return await cache_invalidate(url=url)
+
+
+@app.get("/api/tts", response_class=StreamingResponse)
+async def tts_get(
+    url: str = Query("", description="URL статьи для озвучки"),
+    text: str = Query("", description="Прямой текст (вместо URL)"),
+    voice: str = Query("ru-m", description="Пресет голоса (ru-m, en-f, …) или полное имя"),
+    speed: str = Query("+0%", description="Скорость: -20%, +0%, +10%, …"),
+) -> StreamingResponse:
+    resolved_voice = resolve_voice(voice)
+
+    if url.strip():
+        try:
+            return await article_to_speech(url.strip(), voice=resolved_voice, speed=speed)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+    if text.strip():
+        tts_text = prepare_text(text.strip())
+        if not tts_text:
+            raise HTTPException(status_code=400, detail="Текст пуст после подготовки")
+        if len(tts_text) > 50_000:
+            raise HTTPException(status_code=400, detail="Текст слишком длинный")
+
+        async def _stream():
+            async for chunk in text_to_speech(tts_text, voice=resolved_voice, speed=speed):
+                yield chunk
+
+        return StreamingResponse(
+            _stream(),
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": 'inline; filename="saylat_tts.mp3"',
+                "Cache-Control": "public, max-age=600",
+                "X-Saylat-Audio-Chars": str(len(tts_text)),
+                "X-Saylat-Audio-Voice": resolved_voice,
+            },
+        )
+
+    raise HTTPException(status_code=400, detail="Укажите url или text")
+
+
+@app.post("/api/tts", response_class=StreamingResponse)
+async def tts_post(body: TtsRequest) -> StreamingResponse:
+    resolved_voice = resolve_voice(body.voice)
+
+    if body.url.strip():
+        try:
+            return await article_to_speech(body.url.strip(), voice=resolved_voice, speed=body.speed)
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+    if body.text.strip():
+        tts_text = prepare_text(body.text.strip())
+        if not tts_text:
+            raise HTTPException(status_code=400, detail="Текст пуст после подготовки")
+        if len(tts_text) > 50_000:
+            raise HTTPException(status_code=400, detail="Текст слишком длинный")
+
+        async def _stream():
+            async for chunk in text_to_speech(tts_text, voice=resolved_voice, speed=body.speed):
+                yield chunk
+
+        return StreamingResponse(
+            _stream(),
+            media_type="audio/mpeg",
+            headers={
+                "Content-Disposition": 'inline; filename="saylat_tts.mp3"',
+                "Cache-Control": "public, max-age=600",
+                "X-Saylat-Audio-Chars": str(len(tts_text)),
+                "X-Saylat-Audio-Voice": resolved_voice,
+            },
+        )
+
+    raise HTTPException(status_code=400, detail="Укажите url или text")
+
+
+@app.get("/api/tts/info", response_model=TtsInfoResponse)
+async def tts_info_endpoint() -> TtsInfoResponse:
+    try:
+        return await tts_info()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+
+@app.get("/api/extract/delta")
+async def extract_delta(
+    request: Request,
+    url: str = Query(..., description="Целевой URL"),
+    images: str = Query("normal", pattern="^(normal|tiny|off|layout|refs)$"),
+    level: str = Query("medium", pattern="^(light|medium|full)$"),
+) -> Response:
+    # Delta всегда JSON envelope (gzip-b64) — тот же формат, что кэширует Android ArticleWireCache.
+    from .payload_codec import CODEC_GZIP_B64, prepare_article_envelope
+
+    header = request.headers.get("x-saylat-level") or request.headers.get("x-saylat-compression-level")
+    article, cache_key = await _extract_safe(
+        url, images=images, level=level, level_header=header, request=request,
+    )
+    envelope = await prepare_article_envelope(article, CODEC_GZIP_B64, cache_key)
+    serialized = envelope.model_dump_json().encode("utf-8")
+    return await maybe_delta_response(
+        article, request, serialized, cache_key,
+        media_type="application/json; charset=utf-8",
+    )
+
+
+@app.get("/api/extract/sprite", response_model=ArticleWireEnvelope)
+async def extract_sprite(
+    request: Request,
+    url: str = Query(..., description="Целевой URL"),
+    level: str = Query("medium", pattern="^(light|medium|full)$"),
+    sprite_width: int = Query(360, ge=120, le=800, description="Ширина спрайта в px"),
+) -> ArticleWireEnvelope:
+    from .payload_codec import CODEC_GZIP_B64, parse_payload_codec, prepare_article_envelope
+
+    try:
+        parsed = validate_public_http_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    compression = parse_compression_level(level)
+    codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec")) or CODEC_GZIP_B64
+
+    try:
+        article = await extract_with_sprites(parsed, images_mode="sprite", level=level)
+        article = apply_compression_level(article, compression)
+        cache_key = f"sprite:{parsed}:{compression}:{sprite_width}"
+        return await prepare_article_envelope(article, codec, cache_key)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Upstream fetch failed") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+
+@app.get("/api/extract/ascii", response_model=ArticleWireEnvelope)
+async def extract_ascii(
+    request: Request,
+    url: str = Query(..., description="Целевой URL"),
+    level: str = Query("light", pattern="^(light|medium|full)$"),
+    ascii_width: int = Query(60, ge=30, le=120, description="Ширина ASCII в символах"),
+    ascii_style: str = Query("standard", pattern="^(standard|blocks|braille)$"),
+) -> ArticleWireEnvelope:
+    from .payload_codec import CODEC_GZIP_B64, parse_payload_codec, prepare_article_envelope
+
+    try:
+        parsed = validate_public_http_url(url)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    compression = parse_compression_level(level)
+    codec = parse_payload_codec(request.headers.get("x-saylat-payload-codec")) or CODEC_GZIP_B64
+    timeout = outbound_timeout_sec(request)
+
+    try:
+        article = await extract_article(parsed, images_mode="tiny", timeout_sec=timeout)
+        article = apply_ascii_to_article(article, width=ascii_width, style=ascii_style)
+        article = apply_compression_level(article, compression)
+        cache_key = f"ascii:{parsed}:{compression}:{ascii_width}:{ascii_style}"
+        return await prepare_article_envelope(article, codec, cache_key)
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail="Upstream fetch failed") from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+
+@app.post("/api/image/ascii", response_model=AsciiBlockData)
+async def image_to_ascii_endpoint(
+    url: str = Query(..., description="URL картинки"),
+    width: int = Query(60, ge=20, le=200),
+    style: str = Query("standard", pattern="^(standard|blocks|braille)$"),
+) -> AsciiBlockData:
+    try:
+        target = validate_public_http_url(url.strip())
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=False,
+            timeout=settings.request_timeout_sec,
+        ) as client:
+            resp = await client.get(target)
+            resp.raise_for_status()
+            raw = resp.content[: settings.max_image_bytes]
+            return image_to_block_data(raw, width=width, style=style)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=500, detail="Не удалось преобразовать изображение"
+        ) from exc
+
+
+@app.get("/api/extract/progressive")
+async def extract_progressive(
+    url: str = Query(..., description="Целевой URL"),
+    images: str = Query("normal", pattern="^(normal|tiny|off|layout|refs)$"),
+    level: str = Query("medium", pattern="^(light|medium|full)$"),
+) -> StreamingResponse:
+    return progressive_streaming_response(
+        progressive_extract(url.strip(), images=images, level=level)
+    )
+
+
+@app.get("/api/podcast", response_class=StreamingResponse)
+async def podcast_get(
+    voice: str = Query("ru-m", description="Пресет голоса"),
+    speed: str = Query("+0%", description="Скорость речи"),
+    max_articles: int = Query(5, ge=1, le=20, description="Максимум статей"),
+) -> StreamingResponse:
+    resolved_voice = resolve_voice(voice)
+    try:
+        gen = generate_podcast(voice=resolved_voice, speed=speed, max_articles=max_articles)
+        return podcast_streaming_response(gen)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+
+@app.post("/api/podcast", response_class=StreamingResponse)
+async def podcast_post(body: PodcastRequest) -> StreamingResponse:
+    resolved_voice = resolve_voice(body.voice)
+    try:
+        if body.urls:
+            gen = podcast_from_urls(body.urls, voice=resolved_voice, speed=body.speed)
+        else:
+            gen = generate_podcast(
+                voice=resolved_voice,
+                speed=body.speed,
+                max_articles=body.max_articles,
+                sources=body.sources,
+            )
+        return podcast_streaming_response(gen)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail="Внутренняя ошибка сервера") from exc
+
+
+@app.get("/api/podcast/info", response_model=PodcastInfoResponse)
+async def podcast_info_endpoint() -> PodcastInfoResponse:
+    return await podcast_info()
+
+
+@app.get("/api/traffic/stats", response_model=TrafficStatsResponse)
+async def traffic_stats_endpoint() -> TrafficStatsResponse:
+    return await get_traffic_stats()

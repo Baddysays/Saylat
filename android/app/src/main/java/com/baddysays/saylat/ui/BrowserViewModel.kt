@@ -16,7 +16,10 @@ import com.baddysays.saylat.data.ConnectStatus
 import com.baddysays.saylat.data.OpenRequest
 import com.baddysays.saylat.data.PayloadCodec
 import com.baddysays.saylat.data.fetchArticle
+import com.baddysays.saylat.data.fetchArticleLegacy
 import com.baddysays.saylat.data.fetchOpen
+import com.baddysays.saylat.network.TrafficSavingsBridge
+import com.baddysays.saylat.tts.ServerTtsPlayer
 import com.baddysays.saylat.data.SaylatArticle
 import com.baddysays.saylat.data.SaylatFeed
 import com.baddysays.saylat.data.ServiceCredentialsUpdate
@@ -61,6 +64,7 @@ import com.baddysays.saylat.network.SpeedProfile
 import com.baddysays.saylat.network.SpeedTier
 import com.baddysays.saylat.tts.ArticleTtsEngine
 import com.baddysays.saylat.tts.TtsState
+import com.baddysays.saylat.tts.TtsStatus
 import com.baddysays.saylat.ui.pet.PetBrowserAction
 import com.baddysays.saylat.ui.pet.PetBrowserBridge
 import com.baddysays.saylat.ui.pet.PetBrowserCue
@@ -74,6 +78,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -191,6 +196,7 @@ class BrowserViewModel(
     private val readLaterRepo = ReadLaterRepository(appContext)
     private val browsingHistory = BrowsingHistory(appContext)
     private val ttsEngine = ArticleTtsEngine(appContext)
+    private val serverTts = ServerTtsPlayer(appContext)
     private var layoutLabCache: LayoutLabComparison? = null
     private var petLoadStartedAtMs = 0L
     private var lastNetworkOnline: Boolean? = null
@@ -210,6 +216,14 @@ class BrowserViewModel(
         ),
     )
     val state: StateFlow<BrowserUiState> = _state.asStateFlow()
+
+    init {
+        TrafficSavingsBridge.listener = { original, compressed ->
+            viewModelScope.launch {
+                trafficSavings.record(original, compressed)
+            }
+        }
+    }
 
     val screen: StateFlow<AppScreen> = state
         .map { it.screen }
@@ -236,8 +250,12 @@ class BrowserViewModel(
     val historyEntries = browsingHistory.entries
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val ttsState: StateFlow<TtsState> = ttsEngine.state
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TtsState())
+    val ttsState: StateFlow<TtsState> = combine(ttsEngine.state, serverTts.state) { local, server ->
+        when {
+            server.status != TtsStatus.IDLE -> server
+            else -> local
+        }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), TtsState())
 
     init {
         viewModelScope.launch {
@@ -931,7 +949,7 @@ class BrowserViewModel(
                 error = null,
             )
             try {
-                val article = api().fetchArticle(
+                val article = api().fetchArticleLegacy(
                     LAYOUT_LAB_SAMPLE_URL,
                     images = extractImagesMode(),
                     level = compressionLevel(),
@@ -1389,6 +1407,19 @@ class BrowserViewModel(
 
     fun startTts(startFromParagraph: Int = 0) {
         val article = _state.value.article ?: return
+        if (effectiveSlowNetwork()) {
+            viewModelScope.launch {
+                val base = prefs.baseUrl.first()
+                val client = ApiFactory.httpClient(
+                    base,
+                    slowNetwork = true,
+                    compressionLevel = compressionLevel(),
+                    apiKey = BuildConfig.PROXY_API_KEY,
+                )
+                serverTts.play(client, base, article.url, BuildConfig.PROXY_API_KEY)
+            }
+            return
+        }
         val paragraphs = article.blocks
             .filter { it.type == "paragraph" || it.type == "heading" }
             .mapNotNull { it.text }
@@ -1400,26 +1431,39 @@ class BrowserViewModel(
         }
     }
 
-    fun pauseTts() = ttsEngine.pause()
-
-    fun resumeTts() = ttsEngine.resume()
-
-    fun stopTts() = ttsEngine.stop()
-
-    fun nextTts() = ttsEngine.skipNext()
-
-    fun prevTts() = ttsEngine.skipPrev()
-
-    override fun onCleared() {
-        ttsEngine.destroy()
-        super.onCleared()
+    fun pauseTts() {
+        if (effectiveSlowNetwork()) serverTts.pause() else ttsEngine.pause()
     }
 
-    private suspend fun recordTrafficSavings(stats: ArticleStats) {
-        trafficSavings.record(
-            originalBytes = stats.original_bytes.toLong(),
-            payloadBytes = stats.payload_bytes.toLong(),
-        )
+    fun resumeTts() {
+        if (effectiveSlowNetwork()) serverTts.resume() else ttsEngine.resume()
+    }
+
+    fun stopTts() {
+        serverTts.stop()
+        ttsEngine.stop()
+    }
+
+    fun nextTts() {
+        if (effectiveSlowNetwork() && serverTts.state.value.status != TtsStatus.IDLE) {
+            // single MP3 — restart from beginning is best-effort no-op for skip
+            return
+        }
+        ttsEngine.skipNext()
+    }
+
+    fun prevTts() {
+        if (effectiveSlowNetwork() && serverTts.state.value.status != TtsStatus.IDLE) {
+            return
+        }
+        ttsEngine.skipPrev()
+    }
+
+    override fun onCleared() {
+        TrafficSavingsBridge.listener = null
+        serverTts.destroy()
+        ttsEngine.destroy()
+        super.onCleared()
     }
 
     private fun openMailItem(item: FeedItem) {
@@ -1603,7 +1647,6 @@ class BrowserViewModel(
                 readerUseSmartLayout = false,
             )
             creditPetTrafficSavings(article.url, article.stats)
-            recordTrafficSavings(article.stats)
             petLoadSuccess(article.url, article.stats)
             withContext(Dispatchers.IO) { PageCache.putArticle(appContext, article) }
             refreshOfflineCache()
@@ -1631,7 +1674,6 @@ class BrowserViewModel(
             readerUseSmartLayout = wantSmart,
         )
         creditPetTrafficSavings(article.url, article.stats)
-        recordTrafficSavings(article.stats)
         petLoadSuccess(article.url, article.stats)
         if (wantSmart) {
             val enhanced = withContext(Dispatchers.Default) {
@@ -1912,14 +1954,33 @@ class BrowserViewModel(
             translating = false,
         )
         try {
+            val base = prefs.baseUrl.first()
+            val slow = effectiveSlowNetwork()
+            val level = compressionLevel()
+            val apiKey = BuildConfig.PROXY_API_KEY
+            val client = ApiFactory.httpClient(base, slow, level, apiKey)
             val response = api().fetchOpen(
-                OpenRequest(
+                context = appContext,
+                client = client,
+                baseUrl = base,
+                request = OpenRequest(
                     target = target,
                     url = url,
                     resource_id = resourceId,
                     images = extractImagesMode(),
-                    level = compressionLevel(),
+                    level = level,
                 ),
+                slowNetwork = slow,
+                apiKey = apiKey,
+                onPartial = { partial ->
+                    _urlInput.value = partial.url.ifBlank { url ?: _urlInput.value }
+                    _state.value = _state.value.copy(
+                        screen = AppScreen.READER,
+                        loading = true,
+                        article = partial,
+                        pageLoadStats = partial.stats,
+                    )
+                },
             )
             applyOpenResponse(response, urlInput = url ?: _urlInput.value)
         } catch (e: Exception) {

@@ -37,8 +37,23 @@ docker compose up -d --build
 ## API для клиента
 
 - `GET /api/extract?url=...&level=light|medium|full`
+- `GET /api/extract/binary` · `/delta` · `/progressive` — компактный/инкрементальный/SSE путь
+- `GET /api/tts` · `GET|POST /api/podcast` — озвучка
 - `GET /api/feed` — Telegram + VK + почта
 - `POST /api/open` — открыть URL, чат, письмо
 - `POST /api/act` — ответ в Telegram / почту
+- `GET /api/traffic/stats` — экономия трафика на сервере
 
-Обновление APK — **только GitHub Releases**, не с вашего VPS.
+## Обновление APK
+
+Основной канал — [GitHub Releases](https://github.com/Baddysays/Saylat/releases/latest).  
+При деплое через `scripts/deploy-saylat-vps.ps1` APK также кладётся на VPS: `http://ВАШ_IP:8787/app/download/saylat.apk`.
+
+## Деплой с Windows на VPS
+
+```powershell
+# saylat.deploy.env из saylat.deploy.env.example (не коммитить)
+.\scripts\deploy-saylat-vps.ps1 -ServerHost "ваш.ip"
+```
+
+Скрипт: сборка debug APK → tar `docker-compose.yml` + `server/` → scp → `docker compose up -d --build`.

@@ -2,7 +2,16 @@
 
 Формат: `versionName` (`versionCode`). OTA: [releases/update.json](../releases/update.json).
 
-## 0.5.57 (66) — текущая
+## 0.5.58 (67) — текущая
+
+- **saylat-binary** + `/api/extract/delta` (ETag, бинарная дельта, стабильный JSON wire)
+- **Progressive SSE** на 2G без буферизации traffic-middleware
+- Серверный **TTS** (`/api/tts`) и **подкаст** (лимит 20 URL)
+- Счётчик трафика через `X-Saylat-Savings` (без двойного учёта)
+- SSRF/лимиты: sprite/ascii image fetch, Redis invalidate по префиксам
+- Клиент: wire-cache по url+images+level, UI TTS для server player
+
+## 0.5.57 (66)
 
 - **2G / EDGE:** длинные таймауты OkHttp, 4 повтора, автоопределение медленного cellular
 - Заголовок `X-Saylat-Slow-Network` — сервер увеличивает таймаут загрузки страниц до 90 с

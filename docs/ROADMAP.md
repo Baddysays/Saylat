@@ -12,20 +12,22 @@
 | Офлайн-кэш (`PageCache`) | ✅ |
 | Ошибки и таймауты на 2G | ✅ |
 | Push (FCM) | ⬜ |
-| Режим очень слабой сети | ⬜ |
+| Режим очень слабой сети (progressive + server TTS) | ✅ |
 
 ## 🖥️ Сервер
 
 | Задача | Статус |
 |--------|--------|
 | Extract, visual, strips, сжатие | ✅ |
+| Progressive / delta / saylat-binary | ✅ |
+| TTS / podcast | ✅ |
 | Кэш ответов | ✅ |
-| Защита URL (SSRF) | ✅ |
+| Защита URL (SSRF) | 🟡 (страницы + sprite/ascii; redirect-hardening — дальше) |
 | API-ключ и rate limit | ✅ |
 | Fallback plain-текст | ✅ |
 | `/api/feed` — общая лента | ✅ |
 | `/api/act` (Telegram, почта) | 🟡 |
-| Redis | ⬜ |
+| Redis (`REDIS_URL`) | ✅ |
 | Docker | ✅ |
 
 ## 📦 Репозиторий

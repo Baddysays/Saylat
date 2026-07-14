@@ -20,14 +20,14 @@ class Settings(BaseSettings):
     searx_fallbacks: str = "https://search.sapti.me,https://search.mdosch.de"
     search_language: str = "ru-RU"
     search_max_results: int = 24
-    app_version_code: int = 66
-    app_version_name: str = "0.5.57"
+    app_version_code: int = 67
+    app_version_name: str = "0.5.58"
     app_release_notes: str = (
-        "0.5.57 — 2G и кодировки:\n\n"
-        "• Длинные таймауты и повторы на реальном 2G/EDGE\n"
-        "• Заголовок X-Saylat-Slow-Network — сервер ждёт до 90 с\n"
-        "• Кириллица cp1251/koi8-r при разборе страниц\n"
-        "• JSON ответы с charset=utf-8"
+        "0.5.58 — progressive, delta, TTS:\n\n"
+        "• saylat-binary и /api/extract/delta (ETag)\n"
+        "• Progressive SSE на 2G без буферизации\n"
+        "• Серверный TTS и подкаст\n"
+        "• X-Saylat-Savings в счётчике трафика"
     )
     translate_timeout_sec: float = 20.0
     translate_default_target: str = "ru"
@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     allowed_schemes: tuple[str, ...] = ("http", "https")
     cache_ttl_sec: int = 900
     cache_max_entries: int = 400
+    traffic_max_records: int = 5000
     redis_url: str = ""
 
     # Fernet-ключ для шифрования data/credentials.json (python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())")

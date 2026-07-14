@@ -1,0 +1,105 @@
+// Saylat Protocol Buffers — спецификация бинарного формата статьи.
+// Файл нужен как документация и для будущей генерации кода (protoc).
+// Сервер использует protobuf_codec.py — чистый Python без protoc.
+
+syntax = "proto3";
+package saylat.v1;
+
+// ── Перечисления ──────────────────────────────────────────────
+
+enum BlockType {
+  BLOCK_TYPE_UNSPECIFIED = 0;
+  HEADING                = 1;
+  PARAGRAPH              = 2;
+  IMAGE                  = 3;
+  LIST                   = 4;
+  QUOTE                  = 5;
+  DIVIDER                = 6;
+  LINK                   = 7;
+}
+
+enum LayoutHint {
+  LAYOUT_HINT_UNSPECIFIED = 0;
+  ARTICLE                 = 1;
+  FEED                    = 2;
+  MINIMAL                 = 3;
+  GALLERY                 = 4;
+}
+
+enum SiteProfile {
+  SITE_PROFILE_UNSPECIFIED = 0;
+  GENERIC                  = 1;
+  PIKABU                   = 2;
+}
+
+enum CompressionLevel {
+  COMPRESSION_LEVEL_UNSPECIFIED = 0;
+  LIGHT                         = 1;
+  MEDIUM                        = 2;
+  FULL                          = 3;
+}
+
+// ── Вложенные сообщения ──────────────────────────────────────
+
+message TextSpan {
+  string text = 1;
+  optional string href = 2;
+}
+
+message ArticleLink {
+  string text = 1;
+  string href = 2;
+}
+
+message ArticleStats {
+  int64 original_bytes = 1;
+  int64 payload_bytes  = 2;
+  int64 wire_bytes     = 3;
+  int64 images_inlined = 4;
+  int64 images_omitted = 5;
+  int64 fetch_ms       = 6;
+}
+
+message CssHints {
+  string primary_color     = 1;
+  string background_color  = 2;
+  float body_font_size_sp  = 3;
+  string heading_color     = 4;
+}
+
+message Block {
+  BlockType type  = 1;
+  optional string text   = 2;
+  optional int32  level  = 3;   // 1..6
+  optional string src    = 4;
+  optional string alt    = 5;
+  optional int32  width  = 6;
+  optional int32  height = 7;
+  repeated string items  = 8;
+  repeated TextSpan spans = 9;
+  optional string href   = 10;
+}
+
+// ── Корневое сообщение ───────────────────────────────────────
+
+message SaylatArticle {
+  string url   = 1;
+  string title = 2;
+
+  string excerpt = 3;
+  string byline  = 4;
+  string lang    = 5;
+
+  repeated Block blocks = 6;
+  ArticleStats stats    = 7;
+
+  LayoutHint       layout_hint       = 8;
+  SiteProfile      site_profile      = 9;
+  CompressionLevel compression_level = 10;
+
+  string plain_text = 11;
+
+  repeated ArticleLink links = 12;
+
+  CssHints css_hints = 13;
+}

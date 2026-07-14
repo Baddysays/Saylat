@@ -18,9 +18,11 @@ CODEC_ZSTD_BINARY = "zstd-binary"
 CODEC_GZIP_BINARY = "gzip-binary"
 CODEC_GZIP_B64 = "gzip-b64"
 CODEC_IDENTITY = "identity"
+CODEC_SAYLAT_BINARY = "saylat-binary"
 
 MEDIA_TYPE_SAYLAT_ZSTD = "application/vnd.saylat.v1+zstd"
 MEDIA_TYPE_SAYLAT_GZIP = "application/vnd.saylat.v1+gzip"
+MEDIA_TYPE_SAYLAT_BINARY = "application/vnd.saylat.v1+protobuf"
 
 HDR_WIRE_BYTES = "X-Saylat-Wire-Bytes"
 HDR_UNCOMPRESSED_BYTES = "X-Saylat-Uncompressed-Bytes"
@@ -33,8 +35,8 @@ GZIP_LEVEL_LARGE = 3
 ZSTD_LEVEL_FAST = 3
 LARGE_PAYLOAD_BYTES = 96_000
 
-_BINARY_CODECS = frozenset({CODEC_ZSTD_BINARY, CODEC_GZIP_BINARY})
-_CODEC_PREFERENCE = (CODEC_ZSTD_BINARY, CODEC_GZIP_BINARY, CODEC_GZIP_B64)
+_BINARY_CODECS = frozenset({CODEC_SAYLAT_BINARY, CODEC_ZSTD_BINARY, CODEC_GZIP_BINARY})
+_CODEC_PREFERENCE = (CODEC_SAYLAT_BINARY, CODEC_ZSTD_BINARY, CODEC_GZIP_BINARY, CODEC_GZIP_B64)
 
 _zstd_module: Any = False
 
@@ -73,6 +75,12 @@ def parse_payload_codec(header: str | None) -> str | None:
 def _codec_usable(codec: str) -> bool:
     if codec == CODEC_ZSTD_BINARY:
         return zstd_available()
+    if codec == CODEC_SAYLAT_BINARY:
+        try:
+            from .protobuf_codec import encode_article  # noqa: F401
+            return True
+        except ImportError:
+            return False
     return codec in (CODEC_GZIP_BINARY, CODEC_GZIP_B64)
 
 
@@ -98,6 +106,11 @@ def _gzip_level_for_size(raw_len: int) -> int:
 
 
 def compress_raw(raw: bytes, codec: str) -> bytes:
+    if codec == CODEC_SAYLAT_BINARY:
+        from .protobuf_codec import encode_article
+
+        article = article_from_json_bytes(raw)
+        return encode_article(article)
     if codec == CODEC_ZSTD_BINARY:
         zstd = _zstd_module
         if not zstd:
@@ -109,6 +122,11 @@ def compress_raw(raw: bytes, codec: str) -> bytes:
 
 
 def decompress_raw(data: bytes, codec: str) -> bytes:
+    if codec == CODEC_SAYLAT_BINARY:
+        from .protobuf_codec import decode_article
+
+        article = decode_article(data)
+        return article_to_json_bytes(article)
     if codec == CODEC_ZSTD_BINARY:
         zstd = _zstd_module
         if not zstd:
@@ -120,6 +138,8 @@ def decompress_raw(data: bytes, codec: str) -> bytes:
 
 
 def media_type_for_codec(codec: str) -> str:
+    if codec == CODEC_SAYLAT_BINARY:
+        return MEDIA_TYPE_SAYLAT_BINARY
     if codec == CODEC_ZSTD_BINARY:
         return MEDIA_TYPE_SAYLAT_ZSTD
     return MEDIA_TYPE_SAYLAT_GZIP
